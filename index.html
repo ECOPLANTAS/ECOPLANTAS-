@@ -107,16 +107,30 @@ var WHATSAPP = "595983449996";
    opciones: si el producto tiene más de un precio, usá "opciones" en vez de "precio". */
 var PRODUCTOS = [
   {id:"anturio", nombre:"Anturio", cat:"Interior", precio:50000, foto:"anturio.jpg"},
-  {id:"limon-tahiti", nombre:"Limón Tahití", cat:"Cítricos", precio:30000, foto:"limon-tahiti.jpg"},
-  {id:"naranja-variegado", nombre:"Naranja variegado", cat:"Cítricos", precio:30000, foto:"naranja-variegado.jpg",
+  {id:"cala-negra", nombre:"Cala Negra (Spathiphyllum)", cat:"Interior", precio:40000, foto:"cala-negra.jpg",
+   desc:"Una planta elegante que rompe con lo tradicional. Sus hojas grandes, brillantes y de un verde profundo aportan un toque de lujo y sofisticación a cualquier espacio.",
+   detalles:["Tolera poca luz y es muy fácil de cuidar","Ideal para sala, oficina o dormitorio"]},
+  {id:"limon-tahiti", nombre:"Limón Tahití", cat:"Cítricos", precio:25000, foto:"limon-tahiti.jpg"},
+  {id:"pomelo-rosado", nombre:"Pomelo rosado", cat:"Cítricos", precio:25000, foto:"pomelo-rosado.jpg",
+   desc:"Sabor y frescura en tu hogar: un hermoso árbol frutal con hojas verdes y frutos jugosos de pulpa rosada, ideales para preparar deliciosos jugos naturales.",
+   detalles:["Cultivá naturaleza y disfrutá tus propios frutos"]},
+  {id:"naranja-variegado", nombre:"Naranja variegado", cat:"Cítricos", precio:25000, foto:"naranja-variegado.jpg",
    desc:"Hojas llamativas, grandes, ovaladas y gruesas, con una combinación única de verde oscuro, verde claro y crema.",
    detalles:["Altura: en maceta puede alcanzar entre 1,5 y 3 metros en aproximadamente 5 a 10 años, según sus cuidados","Crecimiento: entre 15 y 60 cm por año en buenas condiciones","Dato interesante: sus hojas nuevas pueden presentar colores más claros que cambian a medida que maduran"]},
-  {id:"naranja-ombligo-injertada", nombre:"Naranja de ombligo injertada", cat:"Cítricos", precio:30000, foto:"naranja-ombligo-injertada.jpg",
+  {id:"naranja-ombligo-injertada", nombre:"Naranja de ombligo injertada", cat:"Cítricos", precio:25000, foto:"naranja-ombligo-injertada.jpg",
    desc:"Planta injertada de hojas verdes, brillantes y aromáticas.",
    detalles:["Altura: alcanza hasta 3 metros","Frutos: comienza a producir naranjas aproximadamente a los 3 años","Producción anual: de 30 a 50 frutas por año, según sus cuidados"]},
   {id:"hortensias", nombre:"Hortensias", cat:"Flores", foto:"hortensias.jpg",
    desc:"Floración espectacular, con abundantes flores en cabezales voluminosos y muy vistosos.",
    detalles:["Colores disponibles: azul, rosa o blanco","Follaje exuberante: hojas grandes y verdes","Ideal para patios o galerías a media sombra"],
+   opciones:[{label:"Opción 1",precio:15000},{label:"Opción 2",precio:30000}]},
+  {id:"hortensia-azul", nombre:"Hortensia azul", cat:"Flores", foto:"hortensia-azul.jpg",
+   desc:"Flores de un azul intenso que llenan cualquier espacio de vida y elegancia. ¡Ideal para darle un toque especial a tu jardín!",
+   detalles:["Alcanza hasta 2 metros de altura","Prefiere lugares frescos con semisombra"],
+   opciones:[{label:"Opción 1",precio:15000},{label:"Opción 2",precio:30000}]},
+  {id:"hortensia-blanca", nombre:"Hortensia blanca", cat:"Flores", foto:"hortensia-blanca.jpg",
+   desc:"Sus abundantes flores blancas aportan belleza, delicadeza y elegancia a cualquier rincón. ¡Perfecta para un jardín lleno de encanto!",
+   detalles:["Puede alcanzar hasta 2 metros de altura","Crece mejor en lugares frescos con semisombra"],
    opciones:[{label:"Opción 1",precio:15000},{label:"Opción 2",precio:30000}]}
 ];
 /* ====== FIN DE LA PARTE EDITABLE ====== */
@@ -202,4 +216,4 @@ $("waFoot").href="https://wa.me/"+WHATSAPP;
 chips();grid();pedido();
 </script>
 </body>
-  </html>
+</html>
