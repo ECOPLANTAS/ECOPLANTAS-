@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>ECOPLANTAS · Gestión</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{--v:#1f6b3a;--v2:#e8f3ea;--t:#1b2a1f;--g:#6b7a70;--r:#b3261e;--b:#d8e4da}
+*{box-sizing:border-box}body{margin:0;font:15px system-ui,sans-serif;background:#f6faf6;color:var(--t)}
+header{background:var(--v);color:#fff;padding:10px 14px}
+nav{display:flex;overflow-x:auto;background:#fff;border-bottom:1px solid var(--b);position:sticky;top:0;z-index:5}
+nav button{border:0;background:none;padding:12px 14px;white-space:nowrap;color:var(--g);font:inherit}
+nav button.on{color:var(--v);border-bottom:3px solid var(--v);font-weight:600}
+main{padding:12px;max-width:900px;margin:auto}
+.card{background:#fff;border:1px solid var(--b);border-radius:12px;padding:12px;margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px}
+.k{background:var(--v2);border-radius:10px;padding:10px}.k b{display:block;font-size:17px}.k small{color:var(--g)}
+label{display:block;margin:8px 0;font-size:13px;color:var(--g)}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--b);border-radius:8px;font:inherit;margin-top:3px;background:#fff}
+.ck{display:flex;gap:8px;align-items:center}.ck input{width:auto;margin:0}
+button.p{background:var(--v);color:#fff;border:0;border-radius:8px;padding:11px 16px;font:inherit;margin:6px 6px 0 0}
+button.s{background:#fff;color:var(--v);border:1px solid var(--v);border-radius:8px;padding:6px 10px;font:inherit;font-size:13px;margin:2px}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:6px;border-bottom:1px solid var(--b);text-align:left}
+.w{overflow-x:auto}.neg{color:var(--r)}.pos{color:var(--v)}
+.warn{background:#fff4e5;border-left:4px solid #e08a00;padding:8px;margin:6px 0;border-radius:6px;font-size:13px}
+.bad{background:#fdecea;border-left-color:var(--r)}
+#toast{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 14px;border-radius:8px;display:none;max-width:90%;z-index:9}
+.bar{height:8px;background:var(--v);border-radius:4px;margin:2px 0 6px}
+@media print{header,nav,.np{display:none}}
+</style></head><body>
+<header><b>🌿 ECOPLANTAS · Gestión</b></header>
+<div id="app"></div><div id="toast"></div>
+<script>
+const SB=supabase.createClient('https://nssvgelyglazdosghmzn.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5zc3ZnZWx5Z2xhemRvc2dobXpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI5NzEyMDgsImV4cCI6MjEwODU0NzIwOH0.DGKYRcsFAjSsVrw6J5aDLpcReCbHD7zETAP8-62cFXg');
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const N=v=>Number(v)||0;
+const fmt=n=>n==null?'—':new Intl.NumberFormat('es-PY',{maximumFractionDigits:0}).format(Math.round(n))+' Gs.';
+const pc=n=>n==null?'—':Number(n).toLocaleString('es-PY',{maximumFractionDigits:2})+' %';
+const cls=n=>N(n)<0?'neg':'pos';
+const toast=m=>{const t=$('#toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',5000)};
+const ok=async p=>{const r=await p;if(r.error)throw r.error;return r.data};
+const hoy=()=>new Date().toLocaleDateString('en-CA');
+const sum=(a,f)=>a.reduce((s,x)=>s+N(x[f]),0);
+const M={margen:(p,c)=>p>0?(p-c)/p*100:null,recargo:(p,c)=>c>0?(p-c)/c*100:null,precioMargen:(c,m)=>m<100?c/(1-m/100):null,pe:(f,mc)=>mc>0?f/mc:null};
+let S={tab:'panel',prueba:false,prod:[],inv:[],mes:[],rent:[],ventas:[],gastos:[],cfg:{},rep:null};
+const vis=a=>a.filter(x=>!!x.es_prueba===S.prueba);
+const TABS=[['panel','Panel'],['productos','Productos'],['precios','Precios'],['ventas','Ventas'],['gastos','Gastos'],['inventario','Inventario'],['analisis','Análisis'],['simulador','Simulador'],['informes','Informes'],['config','Config']];
+const F=(n,l,t='text',x='')=>`<label>${l}<input name="${n}" type="${t}" ${x}></label>`;
+const NUM=(n,l,x='')=>F(n,l,'number','step="any" min="0" inputmode="decimal" '+x);
+const SEL=(n,l,o,x='')=>`<label>${l}<select name="${n}" ${x}>${o.map(a=>Array.isArray(a)?`<option value="${esc(a[0])}">${esc(a[1])}</option>`:`<option>${esc(a)}</option>`).join('')}</select></label>`;
+const CK=(n,l)=>`<label class="ck"><input type="checkbox" name="${n}"> ${l}</label>`;
+const CATS=['transporte','publicidad','alquiler','servicios','materiales','salarios','comisiones','impuestos','financieros','otros'];
+
+function login(msg=''){$('#app').innerHTML=`<main><div class="card"><h3>Entrar</h3>${msg?`<div class="warn">${esc(msg)}</div>`:''}<form onsubmit="return auth(event)">${F('email','Correo','email','required')}${F('password','Contraseña (mínimo 6 caracteres)','password','required minlength="6"')}<button class="p" value="in">Entrar</button><button class="s" value="up">Crear cuenta</button></form></div></main>`}
+async function auth(e){e.preventDefault();const f=e.target,up=e.submitter?.value==='up';
+ const c={email:f.email.value.trim(),password:f.password.value};
+ const r=up?await SB.auth.signUp(c):await SB.auth.signInWithPassword(c);
+ if(r.error){toast(r.error.message);return false}
+ if(up&&!r.data.session){login('Cuenta creada. Confirma el enlace que llegó a tu correo y luego entra.');return false}
+ start();return false}
+async function salir(){await SB.auth.signOut();login()}
+async function start(){const{data:{session}}=await SB.auth.getSession();if(!session)return login();
+ const a=await SB.from('admins').select('user_id');
+ if(!a.data||!a.data.length){$('#app').innerHTML=`<main><div class="card warn bad">Esta cuenta no tiene permiso de administración. Entra con la primera cuenta que se creó.<br><button class="s" onclick="salir()">Salir</button></div></main>`;return}
+ $('#app').innerHTML=`<nav>${TABS.map(([k,l])=>`<button id="t_${k}" onclick="go('${k}')">${l}</button>`).join('')}</nav><main id="m"></main>`;
+ await load();draw()}
+const go=k=>{S.tab=k;draw()};
+function draw(){TABS.forEach(([k])=>$('#t_'+k)?.classList.toggle('on',k===S.tab));$('#m').innerHTML=V[S.tab]()}
+async function load(){
+ const q=(t,s,o)=>{let x=SB.from(t).select(s);return o?x.order(o,{ascending:o==='nombre'}):x};
+ const R=await Promise.all([q('producto_actual','*','nombre'),q('inventario_valorizado','*','nombre'),q('resumen_mensual','*','mes'),q('rentabilidad_producto','*'),
+  SB.from('ventas').select('*,productos(nombre,codigo)').order('fecha',{ascending:false}).order('creado_en',{ascending:false}).limit(300),
+  SB.from('gastos').select('*').order('fecha',{ascending:false}).limit(300),SB.from('config').select('*')]);
+ const er=R.find(x=>x.error);if(er)toast(er.error.message);
+ [S.prod,S.inv,S.mes,S.rent,S.ventas,S.gastos]=R.slice(0,6).map(x=>x.data||[]);
+ S.cfg=Object.fromEntries((R[6].data||[]).map(x=>[x.clave,x.valor]))}
+async function sub(e,k){e.preventDefault();const f=e.target,d=Object.fromEntries(new FormData(f));d.es_prueba=f.es_prueba?f.es_prueba.checked:S.prueba;
+ try{await H[k](d);toast('Guardado ✔');await load();draw()}catch(x){toast(x.message||String(x))}return false}
+const H={};const V={};
+
+H.prod=async d=>{let id=d.pid;
+ if(!id){if(!d.codigo||!d.nombre)throw new Error('Código y nombre son obligatorios');
+  id=(await ok(SB.from('productos').insert({codigo:d.codigo.trim(),nombre:d.nombre.trim(),especie:d.especie||null,categoria:d.categoria,proveedor:d.proveedor||null,stock_minimo:parseInt(d.stock_minimo)||0,es_prueba:d.es_prueba}).select('id').single())).id}
+ if(d.costo_adquisicion!=='')await ok(SB.from('costos_producto').insert({producto_id:id,costo_adquisicion:N(d.costo_adquisicion),transporte:N(d.transporte),materiales:N(d.materiales),mano_obra:N(d.mano_obra),otros_directos:N(d.otros_directos),es_estimado:!!d.es_estimado}));
+ if(d.precio_venta!=='')await ok(SB.from('precios_producto').insert({producto_id:id,precio_venta:N(d.precio_venta),precio_minimo:d.precio_minimo===''?null:N(d.precio_minimo),margen_objetivo:d.margen_objetivo===''?null:N(d.margen_objetivo)}))};
+H.venta=async d=>{const p=S.prod.find(x=>x.id===d.producto_id);
+ await ok(SB.from('ventas').insert({producto_id:d.producto_id,fecha:d.fecha||hoy(),cantidad:parseInt(d.cantidad),precio_unitario:d.precio_unitario===''?N(p?.precio_venta):N(d.precio_unitario),descuento:N(d.descuento),medio_pago:d.medio_pago,comision_cobro:N(d.comision_cobro),costos_variables_extra:N(d.costos_variables_extra),estado_cobro:d.estado_cobro,monto_cobrado:N(d.monto_cobrado)}))};
+H.gasto=async d=>{await ok(SB.from('gastos').insert({fecha:d.fecha||hoy(),concepto:d.concepto,categoria:d.categoria,naturaleza:d.naturaleza,clasificacion:d.clasificacion,monto:N(d.monto),estado_pago:d.estado_pago,fecha_pago:d.estado_pago==='pagado'?(d.fecha||hoy()):null,proveedor:d.proveedor||null,es_prueba:d.es_prueba}))};
+H.mov=async d=>{let c=parseInt(d.cantidad);if(!(c>0))throw new Error('Cantidad inválida');
+ if(d.tipo==='entrada'&&d.costo_unitario==='')throw new Error('Indica el costo unitario de la entrada');
+ if(['perdida','dano'].includes(d.tipo)||(d.tipo==='ajuste'&&d.signo==='-'))c=-c;
+ await ok(SB.from('movimientos_inventario').insert({producto_id:d.producto_id,fecha:d.fecha||hoy(),tipo:d.tipo,cantidad:c,costo_unitario:d.costo_unitario===''?null:N(d.costo_unitario),proveedor:d.proveedor||null,nota:d.nota||null}))};
+H.cfg=async d=>{await ok(SB.from('config').upsert([{clave:'margen_objetivo_general',valor:N(d.margen),actualizado_en:new Date().toISOString()},{clave:'meta_utilidad_mensual',valor:N(d.meta),actualizado_en:new Date().toISOString()}],{onConflict:'clave'}))};
+async function anular(t,id){const m=prompt('Motivo de la anulación');if(!m)return;
+ try{await ok(SB.from(t).update(t==='ventas'?{anulada:true,anulada_motivo:m}:{anulado:true,anulado_motivo:m}).eq('id',id));await load();draw();toast('Anulado ✔')}catch(x){toast(x.message)}}
+async function pagar(id){try{await ok(SB.from('gastos').update({estado_pago:'pagado',fecha_pago:hoy()}).eq('id',id));await load();draw()}catch(x){toast(x.message)}}
+
+V.panel=()=>{const ym=hoy().slice(0,7),mk=ym+'-01',ms=vis(S.mes).sort((a,b)=>a.mes<b.mes?1:-1),cur=ms.find(x=>x.mes===mk)||{},prev=ms.find(x=>x.mes<mk);
+ const vv=vis(S.ventas).filter(x=>!x.anulada),w=new Date(Date.now()-6*864e5).toLocaleDateString('en-CA');
+ const K=(l,v,c='')=>`<div class="k"><small>${l}</small><b class="${c}">${v}</b></div>`;
+ const R=vis(S.rent).filter(x=>x.unidades_vendidas>0),inv=vis(S.inv),meta=N(S.cfg.meta_utilidad_mensual),ut=N(cur.utilidad_neta_est);
+ const top=(f,t,p)=>`<h4>${t}</h4>`+([...R].sort((a,b)=>N(b[f])-N(a[f])).slice(0,5).map(x=>`<div>${esc(x.nombre)}: <b>${p?pc(x[f]):fmt(x[f])}</b></div>`).join('')||'<small>Sin ventas registradas</small>');
+ const neg=R.filter(x=>N(x.ganancia_bruta)<0),bars=ms.slice(0,6).reverse(),mx=Math.max(1,...bars.map(x=>N(x.ingresos_netos)));
+ const ing=N(cur.ingresos_netos);
+ return `${S.prueba?'<div class="warn">Estás viendo DATOS DE PRUEBA</div>':''}<div class="grid">${K('Ventas hoy',fmt(sum(vv.filter(x=>x.fecha===hoy()),'ingreso_neto')))}${K('Ventas 7 días',fmt(sum(vv.filter(x=>x.fecha>=w),'ingreso_neto')))}${K('Ventas del mes',fmt(ing))}${K('Costo de lo vendido',fmt(cur.costo_vendido))}${K('Ganancia bruta',fmt(cur.ganancia_bruta),cls(cur.ganancia_bruta))}${K('Gastos operativos',fmt(cur.gastos_operativos))}${K('Utilidad neta estimada',fmt(ut),cls(ut))}${K('Margen bruto',ing?pc(N(cur.ganancia_bruta)/ing*100):'—')}${K('Margen neto',ing?pc(ut/ing*100):'—')}${K('Flujo de caja estimado',fmt(cur.flujo_caja_est),cls(cur.flujo_caja_est))}${K('Por cobrar',fmt(cur.por_cobrar))}${K('Por pagar',fmt(cur.por_pagar))}${K('Inventario al costo',fmt(sum(inv,'valor_al_costo')))}${K('Meta mensual',meta?pc(ut/meta*100)+' cumplida':'sin definir')}${K('Vs mes anterior',prev&&N(prev.ingresos_netos)?pc((ing/N(prev.ingresos_netos)-1)*100):'—')}</div>
+ <small>Flujo de caja estimado = cobros − gastos pagados − compras de inventario (se asume que las compras se pagan al registrarlas).</small>
+ <div class="card"><h4>Últimos meses (ventas)</h4>${bars.map(x=>`<div><small>${x.mes.slice(0,7)} · ${fmt(x.ingresos_netos)} · utilidad ${fmt(x.utilidad_neta_est)}</small><div class="bar" style="width:${N(x.ingresos_netos)/mx*100}%"></div></div>`).join('')||'<small>Sin datos</small>'}</div>
+ <div class="card">${top('ganancia_bruta','Mayor ganancia total')}${top('ganancia_por_unidad','Mayor ganancia por unidad')}${top('margen_bruto_pct','Mejor margen %',1)}${top('unidades_vendidas','Más vendidos').replace(/Gs\./g,'u.')}</div>
+ ${neg.length?`<div class="warn bad"><b>Productos con pérdida:</b> ${neg.map(x=>esc(x.nombre)).join(', ')}</div>`:''}`};
+
+V.productos=()=>{const P=vis(S.prod),I=Object.fromEntries(S.inv.map(i=>[i.producto_id,i]));
+ return `<div class="card"><h3>Producto, costo y precio</h3><small>Para cambiar costos o precios de un producto existente elígelo en la lista: se guarda un registro nuevo y el historial no se borra.</small>
+ <form onsubmit="return sub(event,'prod')">${SEL('pid','Producto',[['','➕ Producto nuevo'],...P.map(p=>[p.id,p.codigo+' · '+p.nombre])])}${F('codigo','Código único')}${F('nombre','Nombre comercial')}${F('especie','Especie')}${SEL('categoria','Categoría',['ornamental','frutal','medicinal','aromatica','otra'])}${F('proveedor','Proveedor')}${NUM('stock_minimo','Stock mínimo','step="1"')}
+ <h4>Costo unitario completo</h4>${NUM('costo_adquisicion','Costo de compra o producción')}${NUM('transporte','Transporte y flete (por unidad)')}${NUM('materiales','Maceta, sustrato, fertilizante, etiquetas')}${NUM('mano_obra','Mano de obra directa')}${NUM('otros_directos','Otros costos directos')}${CK('es_estimado','Estos costos son una estimación')}
+ <h4>Precio</h4>${NUM('precio_venta','Precio de venta actual')}${NUM('precio_minimo','Precio mínimo aceptable')}${NUM('margen_objetivo','Margen objetivo (%)','max="99.99"')}${CK('es_prueba','Producto de prueba')}<button class="p">Guardar</button></form></div>
+ <div class="card w"><table><tr><th>Producto</th><th>Costo</th><th>Precio</th><th>Ganancia</th><th>Margen</th><th>Recargo</th><th>Stock</th></tr>${P.map(p=>`<tr><td>${esc(p.codigo)} · ${esc(p.nombre)}</td><td>${fmt(p.costo_total)}${p.es_estimado?' (est.)':''}</td><td>${fmt(p.precio_venta)}</td><td class="${cls(p.ganancia_unitaria)}">${fmt(p.ganancia_unitaria)}</td><td>${pc(p.margen_pct)}</td><td>${pc(p.recargo_pct)}</td><td>${I[p.id]?.stock??0}</td></tr>`).join('')}</table></div>`};
+
+V.precios=()=>{const P=vis(S.prod),mo=N(S.cfg.margen_objetivo_general||30);
+ return `<div class="card w"><h3>Precio actual vs recomendado</h3><table><tr><th>Producto</th><th>Costo</th><th>Actual</th><th>Margen</th><th>Objetivo</th><th>Recomendado</th><th>Diferencia</th></tr>${P.filter(p=>p.costo_total!=null).map(p=>{const o=N(p.margen_objetivo||mo),r=M.precioMargen(N(p.costo_total),o);return `<tr><td>${esc(p.nombre)}</td><td>${fmt(p.costo_total)}</td><td>${fmt(p.precio_venta)}</td><td class="${cls(p.margen_pct)}">${pc(p.margen_pct)}</td><td>${pc(o)}</td><td>${fmt(r)}</td><td class="${cls(N(p.precio_venta)-r)}">${p.precio_venta==null?'—':fmt(N(p.precio_venta)-r)}</td></tr>`}).join('')}</table></div>
+ <div class="card"><h3>Calculadora de precio</h3><form id="cal" onsubmit="return calc(event)">${SEL('prod','Producto (opcional)',[['','—'],...P.map(p=>[p.id,p.nombre])],'onchange="this.form.costo.value=S.prod.find(x=>x.id===this.value)?.costo_total??\'\'"')}${NUM('costo','Costo total unitario')}${SEL('modo','Método',[['margen','Por margen objetivo sobre la venta'],['recargo','Por recargo sobre el costo']])}${NUM('valor','Margen o recargo deseado (%)')}${NUM('cargos','Comisiones e impuestos sobre la venta (%)')}${NUM('promo','Descuento de promoción (%)')}${NUM('meta','Meta de ganancia (Gs.), opcional')}<button class="p">Calcular</button></form><div id="calout"></div></div>`};
+function calc(e){e.preventDefault();const f=e.target,c=N(f.costo.value),v=N(f.valor.value),g=N(f.cargos.value)/100,pr=N(f.promo.value)/100,m=N(f.meta.value);let P;
+ if(f.modo.value==='margen'){if(1-g-v/100<=0){$('#calout').innerHTML='<div class="warn bad">Margen + cargos debe ser menor a 100%.</div>';return false}P=c/(1-g-v/100)}else P=c*(1+v/100)/(1-g);
+ const gan=P*(1-g)-c,pp=P*(1-pr),gp=pp*(1-g)-c;
+ $('#calout').innerHTML=`<table><tr><td>Costo total unitario</td><td>${fmt(c)}</td></tr><tr><td><b>Precio recomendado</b></td><td><b>${fmt(P)}</b></td></tr><tr><td>Ganancia por unidad</td><td class="${cls(gan)}">${fmt(gan)}</td></tr><tr><td>Margen real sobre la venta</td><td>${pc(M.margen(P*(1-g),c)!=null?gan/P*100:null)}</td></tr><tr><td>Recargo sobre el costo</td><td>${pc(M.recargo(P*(1-g),c))}</td></tr><tr><td>Precio en promoción</td><td>${fmt(pp)}</td></tr><tr><td>Ganancia en promoción</td><td class="${cls(gp)}">${fmt(gp)}</td></tr>${m>0&&gan>0?`<tr><td>Unidades para la meta</td><td>${Math.ceil(m/gan)}</td></tr>`:''}</table>${gp<0?'<div class="warn bad">En promoción se vende con PÉRDIDA.</div>':''}`;return false}
+
+V.ventas=()=>{const I=vis(S.inv).filter(i=>i.activo),L=vis(S.ventas);
+ return `<div class="card"><h3>Registrar venta</h3>${I.length?`<form onsubmit="return sub(event,'venta')">${SEL('producto_id','Producto',I.map(i=>[i.producto_id,`${i.codigo} · ${i.nombre} (stock ${i.stock}) · ${fmt(i.precio_venta)}`]))}${NUM('cantidad','Cantidad','step="1" min="1" required')}${NUM('precio_unitario','Precio unitario (vacío = precio actual)')}${NUM('descuento','Descuento total (Gs.)')}${SEL('medio_pago','Medio de pago',['efectivo','transferencia','tarjeta','billetera','otro'])}${NUM('comision_cobro','Comisión de cobro (Gs.)')}${NUM('costos_variables_extra','Otros costos de esta venta (Gs.)')}${SEL('estado_cobro','Estado del cobro',['cobrado','pendiente','parcial'])}${NUM('monto_cobrado','Monto cobrado (solo si es parcial)')}<label>Fecha<input type="date" name="fecha" value="${hoy()}"></label><button class="p">Registrar</button></form>`:'<small>Primero crea un producto y registra su entrada de stock en Inventario.</small>'}</div>
+ <div class="card w"><table><tr><th>Fecha</th><th>Producto</th><th>Cant.</th><th>Ingreso</th><th>Ganancia</th><th>Cobro</th><th></th></tr>${L.slice(0,60).map(v=>`<tr style="${v.anulada?'opacity:.5;text-decoration:line-through':''}"><td>${v.fecha}</td><td>${esc(v.productos?.nombre)}</td><td>${v.cantidad}</td><td>${fmt(v.ingreso_neto)}</td><td class="${cls(v.ganancia_bruta)}">${fmt(v.ganancia_bruta)}</td><td>${v.estado_cobro}</td><td>${v.anulada?'':`<button class="s" onclick="anular('ventas','${v.id}')">Anular</button>`}</td></tr>`).join('')}</table></div>`};
+
+V.gastos=()=>{const L=vis(S.gastos);
+ return `<div class="card"><h3>Registrar gasto</h3><form onsubmit="return sub(event,'gasto')">${F('concepto','Concepto','text','required')}${NUM('monto','Monto (Gs.)','required')}${SEL('categoria','Categoría',CATS)}${SEL('naturaleza','Tipo',['variable','fijo'])}${SEL('clasificacion','Clasificación',['directo','indirecto','comercial','financiero','tributario'])}${SEL('estado_pago','Estado',['pagado','pendiente'])}${F('proveedor','Proveedor')}<label>Fecha<input type="date" name="fecha" value="${hoy()}"></label>${CK('es_prueba','Gasto de prueba')}<button class="p">Registrar</button></form><small>No registres aquí la compra de plantas: va como "entrada" en Inventario, para no contar el costo dos veces.</small></div>
+ <div class="card w"><table><tr><th>Fecha</th><th>Concepto</th><th>Monto</th><th>Tipo</th><th>Estado</th><th></th></tr>${L.slice(0,60).map(g=>`<tr style="${g.anulado?'opacity:.5;text-decoration:line-through':''}"><td>${g.fecha}</td><td>${esc(g.concepto)}</td><td>${fmt(g.monto)}</td><td>${g.naturaleza}</td><td>${g.estado_pago}</td><td>${g.anulado?'':`${g.estado_pago==='pendiente'?`<button class="s" onclick="pagar('${g.id}')">Pagado</button>`:''}<button class="s" onclick="anular('gastos','${g.id}')">Anular</button>`}</td></tr>`).join('')}</table></div>`};
+
+V.inventario=()=>{const I=vis(S.inv);
+ return `<div class="grid"><div class="k"><small>Valor al costo</small><b>${fmt(sum(I,'valor_al_costo'))}</b></div><div class="k"><small>Valor potencial de venta</small><b>${fmt(sum(I,'valor_potencial_venta'))}</b></div><div class="k"><small>Ganancia potencial (no es dinero ganado)</small><b>${fmt(sum(I,'ganancia_potencial'))}</b></div></div>
+ <div class="card"><h3>Movimiento de inventario</h3><form onsubmit="return sub(event,'mov')">${SEL('producto_id','Producto',I.map(i=>[i.producto_id,i.codigo+' · '+i.nombre]))}${SEL('tipo','Tipo',[['entrada','Entrada (compra o producción)'],['perdida','Pérdida (planta muerta)'],['dano','Daño'],['devolucion','Devolución de cliente'],['ajuste','Ajuste de stock']])}${SEL('signo','Si es ajuste',[['+','Suma'],['-','Resta']])}${NUM('cantidad','Cantidad','step="1" min="1" required')}${NUM('costo_unitario','Costo unitario (obligatorio en entradas)')}${F('proveedor','Proveedor')}${F('nota','Nota')}<label>Fecha<input type="date" name="fecha" value="${hoy()}"></label><button class="p">Registrar</button></form></div>
+ <div class="card w"><table><tr><th>Producto</th><th>Stock</th><th>Mín.</th><th>Costo prom.</th><th>Valor</th><th>Sin venta</th></tr>${I.map(i=>`<tr><td>${esc(i.nombre)}${i.reponer?' <span class="neg">⚠ reponer</span>':''}</td><td>${i.stock}</td><td>${i.stock_minimo}</td><td>${fmt(i.costo_promedio)}</td><td>${fmt(i.valor_al_costo)}</td><td>${i.dias_sin_venta==null?(i.stock>0?'nunca':'—'):i.dias_sin_venta+' d'}</td></tr>`).join('')}</table></div>`};
+
+function recs(){const R=[],P=vis(S.prod),I=vis(S.inv),mo=N(S.cfg.margen_objetivo_general||30),Rt=vis(S.rent).filter(x=>x.unidades_vendidas>0);
+ P.forEach(p=>{if(p.costo_total==null||p.precio_venta==null)return;const c=N(p.costo_total),pv=N(p.precio_venta),o=N(p.margen_objetivo||mo);
+  if(pv<c)R.push({s:2,t:'Se vende bajo el costo: '+p.nombre,w:`Precio ${fmt(pv)}, costo ${fmt(c)}.`,c:`${fmt(pv)} − ${fmt(c)} = ${fmt(pv-c)} por unidad`,a:`Subir a ${fmt(M.precioMargen(c,o))} para llegar al margen de ${pc(o)}.`});
+  else if(M.margen(pv,c)<o)R.push({s:1,t:'Margen bajo el objetivo: '+p.nombre,w:`Margen actual ${pc(M.margen(pv,c))}, objetivo ${pc(o)}.`,c:`(${fmt(pv)} − ${fmt(c)}) ÷ ${fmt(pv)}`,a:`Precio sugerido: ${fmt(M.precioMargen(c,o))}.`});
+  if(p.es_estimado)R.push({s:0,t:'Costo estimado: '+p.nombre,w:'El costo cargado está marcado como estimación.',c:'—',a:'Reemplazarlo por el costo real cuando lo tengas.'})});
+ I.forEach(i=>{if(i.reponer)R.push({s:1,t:'Reponer stock: '+i.nombre,w:`Stock ${i.stock}, mínimo ${i.stock_minimo}.`,c:'stock ≤ mínimo',a:'Planificar compra o producción.'});
+  if(i.stock>0&&(i.dias_sin_venta==null||i.dias_sin_venta>60))R.push({s:1,t:'Inventario sin movimiento: '+i.nombre,w:`${i.stock} unidades (${fmt(i.valor_al_costo)} al costo) sin ventas en ${i.dias_sin_venta==null?'todo el registro':i.dias_sin_venta+' días'}.`,c:'días desde la última venta > 60',a:'Promoción moderada o revisar el riesgo de deterioro.'})});
+ const ms=vis(S.mes).sort((a,b)=>a.mes<b.mes?1:-1);
+ if(ms.length>1){const a=ms[0],b=ms[1];if(N(b.gastos_operativos)>0&&N(b.ingresos_netos)>0){const gg=a.gastos_operativos/b.gastos_operativos-1,vg=a.ingresos_netos/b.ingresos_netos-1;if(gg>vg)R.push({s:1,t:'Los gastos crecen más que las ventas',w:`Gastos ${pc(gg*100)} vs ventas ${pc(vg*100)} frente al mes anterior.`,c:`${a.mes.slice(0,7)} contra ${b.mes.slice(0,7)}`,a:'Revisar los gastos que más subieron.'})}}
+ const tot=sum(Rt,'ingresos_netos');if(tot>0&&Rt.length>1){const t=[...Rt].sort((a,b)=>b.ingresos_netos-a.ingresos_netos)[0];if(t.ingresos_netos/tot>.5)R.push({s:1,t:'Dependes de un producto: '+t.nombre,w:`Aporta ${pc(t.ingresos_netos/tot*100)} de las ventas.`,c:'ventas del producto ÷ ventas totales',a:'Diversificar el catálogo.'})}
+ const med=a=>{const s=[...a].sort((x,y)=>x-y);return s[Math.floor(s.length/2)]};
+ if(Rt.length>2){const mg=med(Rt.map(x=>N(x.ganancia_por_unidad))),mu=med(Rt.map(x=>x.unidades_vendidas));Rt.forEach(x=>{if(N(x.ganancia_por_unidad)>=mg&&x.unidades_vendidas<mu)R.push({s:0,t:'Buena ganancia pero baja rotación: '+x.nombre,w:`Ganancia por unidad ${fmt(x.ganancia_por_unidad)}, vende ${x.unidades_vendidas} u.`,c:'comparado con la mediana de tus productos',a:'Impulsarlo con publicidad.'});if(N(x.margen_bruto_pct)>=mo&&N(x.ganancia_por_unidad)<mg)R.push({s:0,t:'Buen margen % pero poca ganancia por unidad: '+x.nombre,w:`Margen ${pc(x.margen_bruto_pct)}, ganancia ${fmt(x.ganancia_por_unidad)} por unidad.`,c:'comparado con la mediana',a:'No lo priorices solo por el porcentaje.'})})}
+ const vv=vis(S.ventas).filter(x=>!x.anulada),dsc=sum(vv,'descuento'),br=vv.reduce((s,x)=>s+x.cantidad*N(x.precio_unitario),0);if(br>0&&dsc/br>.15)R.push({s:1,t:'Los descuentos son altos',w:`Representan ${pc(dsc/br*100)} de las ventas brutas.`,c:`${fmt(dsc)} ÷ ${fmt(br)}`,a:'Limitar descuentos o subir el precio base.'});
+ const cur=ms.find(x=>x.mes===hoy().slice(0,7)+'-01');if(cur){if(N(cur.utilidad_neta_est)>0&&N(cur.flujo_caja_est)<0)R.push({s:1,t:'Hay ganancia pero sale más dinero del que entra',w:`Utilidad ${fmt(cur.utilidad_neta_est)}, flujo ${fmt(cur.flujo_caja_est)}.`,c:'cobros − gastos pagados − compras',a:'Cobrar lo pendiente y cuidar el capital de trabajo.'})}
+ return R.sort((a,b)=>b.s-a.s)}
+V.analisis=()=>{const mk=hoy().slice(0,7)+'-01',cur=vis(S.mes).find(x=>x.mes===mk),gs=vis(S.gastos).filter(g=>!g.anulado&&g.fecha>=mk),fj=sum(gs.filter(g=>g.naturaleza==='fijo'),'monto'),gv=sum(gs,'monto')-fj;
+ let pe='Sin ventas este mes para calcularlo.';if(cur&&N(cur.ingresos_netos)>0){const cm=(N(cur.ingresos_netos)-N(cur.costo_vendido)-N(cur.cargos_variables)-gv)/N(cur.ingresos_netos);pe=cm>0?`Costos fijos del mes ${fmt(fj)} ÷ margen de contribución ${pc(cm*100)} = <b>${fmt(fj/cm)}</b> en ventas para no perder (con la mezcla actual de productos).`:'El margen de contribución es cero o negativo: no hay punto de equilibrio alcanzable con estos precios.'}
+ const R=recs();return `<div class="card"><h3>Punto de equilibrio del mes</h3>${pe}</div><div class="card"><h3>Recomendaciones</h3>${R.map(r=>`<div class="warn ${r.s>1?'bad':''}"><b>${esc(r.t)}</b><br>${esc(r.w)}<br><small>Cálculo: ${esc(r.c)}</small><br>→ ${esc(r.a)}</div>`).join('')||'<small>Sin alertas con los datos actuales. Carga productos, ventas y gastos reales.</small>'}</div>
+ <div class="card w"><h3>Rentabilidad por producto</h3><table><tr><th>Producto</th><th>Unid.</th><th>Ingresos</th><th>Ganancia</th><th>Por unidad</th><th>Margen</th></tr>${vis(S.rent).map(x=>`<tr><td>${esc(x.nombre)}</td><td>${x.unidades_vendidas}</td><td>${fmt(x.ingresos_netos)}</td><td class="${cls(x.ganancia_bruta)}">${fmt(x.ganancia_bruta)}</td><td>${fmt(x.ganancia_por_unidad)}</td><td>${pc(x.margen_bruto_pct)}</td></tr>`).join('')}</table></div>`};
+
+V.simulador=()=>{const mk=hoy().slice(0,7)+'-01',fj=sum(vis(S.gastos).filter(g=>!g.anulado&&g.naturaleza==='fijo'&&g.fecha>=mk),'monto');
+ return `<div class="card"><h3>Simulador (no cambia tus datos reales)</h3><form id="sim" onsubmit="return simRun(event)">${SEL('p','Producto',[['','—'],...vis(S.prod).map(p=>[p.id,p.nombre])],'onchange="simFill(this.value)"')}<h4>Situación actual</h4>${NUM('u','Unidades por mes')}${NUM('costo','Costo unitario')}${NUM('precio','Precio de venta')}${NUM('cb','Comisión actual (%)')}${NUM('fijos','Gastos fijos del mes (Gs.)',`value="${fj}"`)}<h4>Escenario (cambios en %)</h4>${F('dc','Costo de compra (+/−)','number','step="any"')}${F('dp','Precio de venta (+/−)','number','step="any"')}${NUM('desc','Descuento promocional')}${F('du','Unidades vendidas (+/−)','number','step="any"')}${F('df','Gastos fijos (+/−)','number','step="any"')}${NUM('perd','Pérdida de inventario')}${NUM('ce','Comisión en el escenario (%)')}<button class="p">Simular</button></form><div id="simout"></div></div>`};
+function simFill(id){const p=S.prod.find(x=>x.id===id),f=$('#sim');if(!p)return;f.costo.value=p.costo_total??'';f.precio.value=p.precio_venta??'';const mk=hoy().slice(0,7)+'-01';f.u.value=vis(S.ventas).filter(v=>v.producto_id===id&&!v.anulada&&v.fecha>=mk).reduce((s,v)=>s+v.cantidad,0)||''}
+function simRun(e){e.preventDefault();const f=e.target,g=n=>N(f[n].value),u=g('u'),c=g('costo'),p=g('precio'),cb=g('cb')/100,fx=g('fijos');
+ const a={ing:u*p,ut:u*p*(1-cb)-u*c-fx,cap:u*c+fx};
+ const pe=p*(1+g('dp')/100)*(1-g('desc')/100),ue=u*(1+g('du')/100),ce=c*(1+g('dc')/100),fe=fx*(1+g('df')/100),vend=ue*(1-g('perd')/100);
+ const b={ing:vend*pe,ut:vend*pe*(1-g('ce')/100)-ue*ce-fe,cap:ue*ce+fe};
+ const row=(l,x,y,m)=>`<tr><td>${l}</td><td>${m?pc(x):fmt(x)}</td><td>${m?pc(y):fmt(y)}</td><td class="${cls(y-x)}">${m?pc(y-x):fmt(y-x)}</td></tr>`;
+ $('#simout').innerHTML=`<table><tr><th></th><th>Actual</th><th>Escenario</th><th>Diferencia</th></tr>${row('Ingresos',a.ing,b.ing)}${row('Utilidad',a.ut,b.ut)}${row('Margen neto',a.ing?a.ut/a.ing*100:0,b.ing?b.ut/b.ing*100:0,1)}${row('Capital necesario',a.cap,b.cap)}</table>`;return false}
+
+V.informes=()=>`<div class="card np"><h3>Informes</h3><form onsubmit="return rep(event)">${SEL('tipo','Informe',[['ventas','Ventas y ganancias'],['gastos','Gastos'],['inventario','Inventario'],['productos','Productos, costos y precios'],['mensual','Resumen mensual']])}<label>Desde<input type="date" name="desde"></label><label>Hasta<input type="date" name="hasta"></label><button class="p">Generar</button></form></div><div id="repout"></div>`;
+async function rep(e){e.preventDefault();const f=e.target,t=f.tipo.value,d=f.desde.value,h=f.hasta.value;let rows=[];
+ try{if(t==='ventas'){let q=SB.from('ventas').select('*,productos(nombre)').eq('es_prueba',S.prueba);if(d)q=q.gte('fecha',d);if(h)q=q.lte('fecha',h);rows=(await ok(q.order('fecha'))).map(v=>({fecha:v.fecha,producto:v.productos?.nombre,cantidad:v.cantidad,precio_unitario:v.precio_unitario,descuento:v.descuento,ingreso_neto:v.ingreso_neto,costo_unitario:v.costo_unitario_vendido,ganancia_bruta:v.ganancia_bruta,medio_pago:v.medio_pago,estado_cobro:v.estado_cobro,anulada:v.anulada?'sí':'no'}))}
+ else if(t==='gastos'){let q=SB.from('gastos').select('*').eq('es_prueba',S.prueba);if(d)q=q.gte('fecha',d);if(h)q=q.lte('fecha',h);rows=(await ok(q.order('fecha'))).map(g=>({fecha:g.fecha,concepto:g.concepto,categoria:g.categoria,tipo:g.naturaleza,clasificacion:g.clasificacion,monto:g.monto,estado:g.estado_pago,anulado:g.anulado?'sí':'no'}))}
+ else if(t==='inventario')rows=vis(S.inv).map(i=>({producto:i.nombre,stock:i.stock,minimo:i.stock_minimo,costo_promedio:i.costo_promedio,valor_al_costo:i.valor_al_costo,valor_potencial_venta:i.valor_potencial_venta,ganancia_potencial:i.ganancia_potencial,dias_sin_venta:i.dias_sin_venta}));
+ else if(t==='productos')rows=vis(S.prod).map(p=>({codigo:p.codigo,producto:p.nombre,costo_total:p.costo_total,precio_venta:p.precio_venta,ganancia_unitaria:p.ganancia_unitaria,margen_pct:p.margen_pct,recargo_pct:p.recargo_pct}));
+ else rows=vis(S.mes).map(m=>({mes:m.mes.slice(0,7),ingresos:m.ingresos_netos,costo_vendido:m.costo_vendido,ganancia_bruta:m.ganancia_bruta,gastos:m.gastos_operativos,utilidad_neta_est:m.utilidad_neta_est,flujo_caja_est:m.flujo_caja_est}));
+ const cols=Object.keys(rows[0]||{});S.rep={name:`ecoplantas_${t}_${hoy()}`,cols,rows};
+ $('#repout').innerHTML=`<div class="card w"><h3>ECOPLANTAS · ${esc(f.tipo.selectedOptions[0].text)}</h3><small>Período: ${d||'inicio'} a ${h||'hoy'} · Moneda: guaraníes (Gs.) · Datos ${S.prueba?'de PRUEBA':'reales'} · Margen = (precio − costo) ÷ precio · Recargo = (precio − costo) ÷ costo · Ganancia bruta = ingreso neto − costo de lo vendido</small><div class="np"><button class="p" onclick="csv()">Descargar para Excel</button><button class="p" onclick="window.print()">Guardar como PDF</button></div><table><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr>${rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(r[c])}</td>`).join('')}</tr>`).join('')}</table>${rows.length?'':'<small>Sin datos para este filtro.</small>'}</div>`}catch(x){toast(x.message)}return false}
+function csv(){const r=S.rep;if(!r)return;const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;const t=[r.cols.map(q).join(';'),...r.rows.map(x=>r.cols.map(c=>q(x[c])).join(';'))].join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+t],{type:'text/csv'}));a.download=r.name+'.csv';a.click()}
+
+V.config=()=>`<div class="card"><h3>Configuración</h3><form onsubmit="return sub(event,'cfg')">${NUM('margen','Margen objetivo general (%)',`value="${N(S.cfg.margen_objetivo_general||30)}"`)}${NUM('meta','Meta de utilidad mensual (Gs.)',`value="${N(S.cfg.meta_utilidad_mensual)}"`)}<button class="p">Guardar</button></form><label class="ck"><input type="checkbox" ${S.prueba?'checked':''} onchange="S.prueba=this.checked;draw()"> Ver y trabajar con datos de PRUEBA (separados de los reales)</label></div>
+ <div class="card"><h3>Pruebas de cálculo</h3><button class="s" onclick="$('#tst').innerHTML=pruebas()">Ejecutar</button><div id="tst"></div></div>
+ <div class="card"><button class="s" onclick="aud()">Ver historial de cambios</button><div id="aud" class="w"></div><button class="s" onclick="salir()">Cerrar sesión</button></div>`;
+function pruebas(){const T=[['Caso 1 · ganancia 1.500',6500-5000===1500],['Caso 1 · recargo 30 %',M.recargo(6500,5000).toFixed(2)==='30.00'],['Caso 1 · margen 23,08 %',M.margen(6500,5000).toFixed(2)==='23.08'],['Caso 2 · precio 10.000',Math.round(M.precioMargen(7000,30))===10000],['Caso 3 · equilibrio 50 unidades',M.pe(200000,10000-6000)===50],['Caso 4 · pérdida de 1.000',10000-11000===-1000]];return T.map(([n,o])=>`<div class="${o?'pos':'neg'}">${o?'✔':'✘'} ${n}</div>`).join('')}
+async function aud(){try{const r=await ok(SB.from('auditoria').select('*').order('fecha',{ascending:false}).limit(30));$('#aud').innerHTML=`<table><tr><th>Fecha</th><th>Tabla</th><th>Acción</th></tr>${r.map(x=>`<tr><td>${x.fecha.slice(0,16).replace('T',' ')}</td><td>${x.tabla}</td><td>${x.accion}</td></tr>`).join('')}</table>`}catch(x){toast(x.message)}}
+SB.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')login()});
+start();
+</script></body></html>
