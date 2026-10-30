@@ -32,4 +32,197 @@ header.top{display:flex;align-items:center;justify-content:space-between;gap:12p
 .chip{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:9px 16px;cursor:pointer;font-weight:600;min-height:44px}
 .chip[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:18px;padding-bottom:110px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
+.thumb{background:var(--leaf);display:block;overflow:hidden}
+.thumb img{width:100%;height:auto;display:block}
+.thumb svg{width:60%;max-width:220px;height:auto;aspect-ratio:1/1;display:block;margin:28px auto}
+.card .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px;flex:1}
+.card h3{margin:0;font-family:"Fraunces",Georgia,serif;font-size:20px}
+.cat{font-size:14px;color:var(--muted)}
+.desc{font-size:15px;color:var(--muted);margin:0}
+.feat{margin:4px 0 0;padding-left:18px;font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.price{font-weight:700;font-size:19px}
+.buy{margin-top:auto;padding-top:8px;display:flex;flex-direction:column;gap:8px}
+.opt{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.empty{grid-column:1/-1;background:var(--surface);border:1.5px dashed var(--line);border-radius:18px;padding:28px;text-align:center;color:var(--muted)}
+footer{border-top:1px solid var(--line);padding:24px 0 120px;color:var(--muted);font-size:15px}
+.fab{position:fixed;right:16px;bottom:calc(100px + env(safe-area-inset-bottom,0px));z-index:20;box-shadow:0 8px 24px var(--shadow)}
+.badge{background:var(--brand-ink);color:var(--brand);border-radius:999px;min-width:24px;padding:0 7px;text-align:center;font-size:14px}
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:none}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);background:var(--surface);z-index:31;display:none;flex-direction:column;padding:calc(16px + env(safe-area-inset-top,0px)) 18px calc(100px + env(safe-area-inset-bottom,0px));box-shadow:-8px 0 30px var(--shadow)}
+body.open .scrim{display:block}
+body.open .drawer{display:flex}
+.drawer h2{font-family:"Fraunces",Georgia,serif;margin:0;font-size:24px}
+.dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.items{flex:1;overflow:auto;display:flex;flex-direction:column;gap:12px;padding:8px 0}
+.row{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.row b{font-weight:700}
+.qty{display:flex;align-items:center;gap:8px}
+.qty button{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line);background:transparent;cursor:pointer;font-size:20px;line-height:1}
+.total{display:flex;justify-content:space-between;font-weight:700;font-size:20px;padding:12px 0}
+label{font-weight:600;font-size:15px}
+input[type=text]{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);margin:6px 0 12px}
+.note{font-size:14px;color:var(--muted);margin:0 0 12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="logo" href="#">ECOPLANTAS</a>
+    <a class="btn ghost" id="waTop" href="#" target="_blank" rel="noopener">Escribinos por WhatsApp</a>
+  </header>
+
+  <section class="hero">
+    <h1>Plantas para tu casa, tu mesa y tu salud</h1>
+    <p>Cítricos, flores, plantas decorativas de interior y fertilizantes. Elegí lo que te gusta y hacé tu pedido por WhatsApp.</p>
+    <div class="chips" id="chips" role="group" aria-label="Categorías"></div>
+  </section>
+
+  <main>
+    <div class="grid" id="grid"></div>
+  </main>
+
+  <footer>
+    <strong>ECOPLANTAS</strong> · Pedidos por WhatsApp <a id="waFoot" href="#" target="_blank" rel="noopener">0983 449 996</a>.<br>
+    Confirmamos tu pedido, el pago y la entrega por el chat.
+  </footer>
+</div>
+
+<button class="btn fab" id="open" aria-label="Ver mi pedido">Mi pedido <span class="badge" id="count">0</span></button>
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Mi pedido">
+  <div class="dh"><h2>Mi pedido</h2><button class="btn ghost" id="close">Cerrar</button></div>
+  <div class="items" id="items"></div>
+  <div class="total"><span>Total</span><span id="total">0 Gs.</span></div>
+  <label for="nombre">Tu nombre</label>
+  <input type="text" id="nombre" autocomplete="name" placeholder="Ej: María">
+  <p class="note">Al enviar, se abre WhatsApp con tu pedido ya escrito. Solo tenés que enviarlo.</p>
+  <a class="btn" id="send" href="#" target="_blank" rel="noopener" aria-disabled="true">Enviar pedido por WhatsApp</a>
+</aside>
+
+<script>
+/* ====== EDITÁ AQUÍ: tu WhatsApp y tus productos ====== */
+var WHATSAPP = "595983449996";
+/* foto: nombre del archivo subido junto a index.html (si no existe, se muestra una hojita).
+   opciones: si el producto tiene más de un precio, usá "opciones" en vez de "precio". */
+var PRODUCTOS = [
+  {id:"anturio", nombre:"Anturio", cat:"Interior", precio:50000, foto:"anturio.jpg"},
+  {id:"cala-negra", nombre:"Cala Negra (Spathiphyllum)", cat:"Interior", precio:40000, foto:"cala-negra.jpg",
+   desc:"Una planta elegante que rompe con lo tradicional. Sus hojas grandes, brillantes y de un verde profundo aportan un toque de lujo y sofisticación a cualquier espacio.",
+   detalles:["Tolera poca luz y es muy fácil de cuidar","Ideal para sala, oficina o dormitorio"]},
+  {id:"limon-tahiti", nombre:"Limón Tahití", cat:"Cítricos", precio:25000, foto:"limon-tahiti.jpg"},
+  {id:"pomelo-rosado", nombre:"Pomelo rosado", cat:"Cítricos", precio:25000, foto:"pomelo-rosado.jpg",
+   desc:"Sabor y frescura en tu hogar: un hermoso árbol frutal con hojas verdes y frutos jugosos de pulpa rosada, ideales para preparar deliciosos jugos naturales.",
+   detalles:["Cultivá naturaleza y disfrutá tus propios frutos"]},
+  {id:"naranja-variegado", nombre:"Naranja variegado", cat:"Cítricos", precio:25000, foto:"naranja-variegado.jpg",
+   desc:"Hojas llamativas, grandes, ovaladas y gruesas, con una combinación única de verde oscuro, verde claro y crema.",
+   detalles:["Altura: en maceta puede alcanzar entre 1,5 y 3 metros en aproximadamente 5 a 10 años, según sus cuidados","Crecimiento: entre 15 y 60 cm por año en buenas condiciones","Dato interesante: sus hojas nuevas pueden presentar colores más claros que cambian a medida que maduran"]},
+  {id:"naranja-ombligo-injertada", nombre:"Naranja de ombligo injertada", cat:"Cítricos", precio:25000, foto:"naranja-ombligo-injertada.jpg",
+   desc:"Planta injertada de hojas verdes, brillantes y aromáticas.",
+   detalles:["Altura: alcanza hasta 3 metros","Frutos: comienza a producir naranjas aproximadamente a los 3 años","Producción anual: de 30 a 50 frutas por año, según sus cuidados"]},
+  {id:"hortensias", nombre:"Hortensias", cat:"Flores", foto:"hortensias.jpg",
+   desc:"Floración espectacular, con abundantes flores en cabezales voluminosos y muy vistosos.",
+   detalles:["Colores disponibles: azul, rosa o blanco","Follaje exuberante: hojas grandes y verdes","Ideal para patios o galerías a media sombra"],
+   opciones:[{label:"Opción 1",precio:15000},{label:"Opción 2",precio:30000}]},
+  {id:"hortensia-azul", nombre:"Hortensia azul", cat:"Flores", foto:"hortensia-azul.jpg",
+   desc:"Flores de un azul intenso que llenan cualquier espacio de vida y elegancia. ¡Ideal para darle un toque especial a tu jardín!",
+   detalles:["Alcanza hasta 2 metros de altura","Prefiere lugares frescos con semisombra"],
+   opciones:[{label:"Opción 1",precio:15000},{label:"Opción 2",precio:30000}]},
+  {id:"hortensia-blanca", nombre:"Hortensia blanca", cat:"Flores", foto:"hortensia-blanca.jpg",
+   desc:"Sus abundantes flores blancas aportan belleza, delicadeza y elegancia a cualquier rincón. ¡Perfecta para un jardín lleno de encanto!",
+   detalles:["Puede alcanzar hasta 2 metros de altura","Crece mejor en lugares frescos con semisombra"],
+   opciones:[{label:"Opción 1",precio:15000},{label:"Opción 2",precio:30000}]},
+  {id:"fertilizante-triple-15", nombre:"Fertilizante Triple 15 (250 g)", cat:"Fertilizantes", precio:20000, foto:"triple15-bio.jpg",
+   desc:"Dale a tus plantas la nutrición que necesitan para crecer hermosas y fuertes. Aporta los tres nutrientes esenciales: nitrógeno, fósforo y potasio.",
+   detalles:["Favorece el crecimiento saludable","Ayuda al desarrollo de flores","Contribuye al fortalecimiento de las plantas","Presentación: 250 gramos, para todo tipo de plantas, árboles y flores"]},
+  {id:"fertilizante-orquideas", nombre:"Fertilizante para orquídeas 20-20-20 (250 g)", cat:"Fertilizantes", precio:20000, foto:"orquideas-fertil.jpg",
+   desc:"Nutrición equilibrada para favorecer el desarrollo de tus orquídeas y estimular una floración espectacular. Fórmula NPK 20-20-20.",
+   detalles:["Estimula la floración","Favorece el desarrollo de raíces fuertes","Ayuda al crecimiento de hojas saludables","Aporta nutrientes para favorecer colores intensos","Presentación: 250 gramos"]},
+  {id:"situpolium-plus", nombre:"Situpolium Plus: insecticida y fertilizante orgánico", cat:"Fertilizantes", precio:20000, foto:"situpolium-insecticida.jpg",
+   desc:"Ayuda a combatir plagas como pulgones, mosca blanca, trips y arañuelas, combinando acción insecticida y fertilización orgánica.",
+   detalles:["Contribuye al cuidado de tus plantas","Ideal para el jardín y las plantas ornamentales","Presentación: sobre de unos 25 g; dosis de 20 g en 10 litros de agua, según el envase"]}
+];
+/* ====== FIN DE LA PARTE EDITABLE ====== */
+
+var cart = {};
+var filtro = "Todas";
+var $ = function(id){return document.getElementById(id)};
+
+function gs(n){return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,".")+" Gs."}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+var HOJA='<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 92V45" stroke="#2f6b3f" stroke-width="4" stroke-linecap="round" fill="none"/><path d="M50 60C30 60 18 46 18 28c20 0 32 12 32 32Z" fill="#2f6b3f"/><path d="M50 48C66 48 80 38 82 18 62 18 50 30 50 48Z" fill="#4c9a5c"/></svg>';
+
+function opcionesDe(p){
+  return p.opciones ? p.opciones.map(function(o,i){return {key:p.id+"#"+i,nombre:p.nombre+" ("+o.label+")",precio:o.precio,label:o.label}})
+                    : [{key:p.id,nombre:p.nombre,precio:p.precio,label:""}];
+}
+function buscar(key){
+  for(var i=0;i<PRODUCTOS.length;i++){var os=opcionesDe(PRODUCTOS[i]);for(var j=0;j<os.length;j++){if(os[j].key===key)return os[j]}}
+}
+
+function chips(){
+  var cats=["Todas"];
+  PRODUCTOS.forEach(function(p){if(cats.indexOf(p.cat)<0)cats.push(p.cat)});
+  $("chips").innerHTML=cats.map(function(c){return '<button class="chip" data-cat="'+esc(c)+'" aria-pressed="'+(c===filtro)+'">'+esc(c)+'</button>'}).join("");
+}
+
+function grid(){
+  var lista=PRODUCTOS.filter(function(p){return filtro==="Todas"||p.cat===filtro});
+  if(!lista.length){$("grid").innerHTML='<div class="empty">Pronto vamos a tener más plantas en esta categoría.</div>';return}
+  $("grid").innerHTML=lista.map(function(p){
+    var os=opcionesDe(p);
+    var feat=p.detalles?'<ul class="feat">'+p.detalles.map(function(d){return "<li>"+esc(d)+"</li>"}).join("")+"</ul>":"";
+    var compra=os.map(function(o){
+      return '<div class="opt"><span class="price">'+(o.label?esc(o.label)+" · ":"")+gs(o.precio)+'</span><button class="btn small" data-add="'+esc(o.key)+'">Agregar</button></div>';
+    }).join("");
+    return '<article class="card"><div class="thumb"><img src="'+esc(p.foto)+'" alt="'+esc(p.nombre)+'" loading="lazy"></div>'+
+      '<div class="body"><h3>'+esc(p.nombre)+'</h3><span class="cat">'+esc(p.cat)+'</span>'+
+      (p.desc?'<p class="desc">'+esc(p.desc)+'</p>':'')+feat+'<div class="buy">'+compra+'</div></div></article>';
+  }).join("");
+  Array.prototype.forEach.call(document.querySelectorAll(".thumb img"),function(img){
+    img.addEventListener("error",function(){img.parentNode.innerHTML=HOJA});
+  });
+}
+
+function pedido(){
+  var keys=Object.keys(cart).filter(function(k){return cart[k]>0});
+  var n=0,total=0;
+  $("items").innerHTML=keys.length?keys.map(function(k){
+    var o=buscar(k);n+=cart[k];total+=o.precio*cart[k];
+    return '<div class="row"><div><b>'+esc(o.nombre)+'</b><div class="cat">'+gs(o.precio)+'</div></div>'+
+      '<div class="qty"><button data-less="'+esc(k)+'" aria-label="Quitar uno">−</button><span>'+cart[k]+'</span><button data-more="'+esc(k)+'" aria-label="Agregar uno">+</button></div></div>';
+  }).join(""):'<p class="note">Todavía no agregaste plantas.</p>';
+  $("count").textContent=n;
+  $("total").textContent=gs(total);
+  var send=$("send");
+  if(!keys.length){send.setAttribute("aria-disabled","true");send.href="#";return}
+  var nombre=$("nombre").value.trim();
+  var txt="Hola ECOPLANTAS, "+(nombre?"soy "+nombre+". ":"")+"Quiero hacer este pedido:\n"+
+    keys.map(function(k){var o=buscar(k);return "- "+cart[k]+" x "+o.nombre+" ("+gs(o.precio)+")"}).join("\n")+
+    "\nTotal: "+gs(total);
+  send.href="https://wa.me/"+WHATSAPP+"?text="+encodeURIComponent(txt);
+  send.removeAttribute("aria-disabled");
+}
+
+function abrir(v){document.body.classList.toggle("open",v)}
+
+document.addEventListener("click",function(e){
+  var t=e.target.closest("button");
+  if(!t)return;
+  if(t.dataset.cat){filtro=t.dataset.cat;chips();grid()}
+  else if(t.dataset.add){cart[t.dataset.add]=(cart[t.dataset.add]||0)+1;pedido()}
+  else if(t.dataset.more){cart[t.dataset.more]++;pedido()}
+  else if(t.dataset.less){cart[t.dataset.less]=Math.max(0,cart[t.dataset.less]-1);pedido()}
+});
+$("open").addEventListener("click",function(){abrir(true)});
+$("close").addEventListener("click",function(){abrir(false)});
+$("scrim").addEventListener("click",function(){abrir(false)});
+$("nombre").addEventListener("input",pedido);
+document.addEventListener("keydown",function(e){if(e.key==="Escape")abrir(false)});
+
+$("waTop").href="https://wa.me/"+WHATSAPP;
+$("waFoot").href="https://wa.me/"+WHATSAPP;
+chips();grid();pedido();
+</script>
+</body>
+</html>
