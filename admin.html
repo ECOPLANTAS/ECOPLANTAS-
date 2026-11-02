@@ -183,5 +183,23 @@ V.config=()=>`<div class="card"><h3>Configuración</h3><form onsubmit="return su
 function pruebas(){const T=[['Caso 1 · ganancia 1.500',6500-5000===1500],['Caso 1 · recargo 30 %',M.recargo(6500,5000).toFixed(2)==='30.00'],['Caso 1 · margen 23,08 %',M.margen(6500,5000).toFixed(2)==='23.08'],['Caso 2 · precio 10.000',Math.round(M.precioMargen(7000,30))===10000],['Caso 3 · equilibrio 50 unidades',M.pe(200000,10000-6000)===50],['Caso 4 · pérdida de 1.000',10000-11000===-1000]];return T.map(([n,o])=>`<div class="${o?'pos':'neg'}">${o?'✔':'✘'} ${n}</div>`).join('')}
 async function aud(){try{const r=await ok(SB.from('auditoria').select('*').order('fecha',{ascending:false}).limit(30));$('#aud').innerHTML=`<table><tr><th>Fecha</th><th>Tabla</th><th>Acción</th></tr>${r.map(x=>`<tr><td>${x.fecha.slice(0,16).replace('T',' ')}</td><td>${x.tabla}</td><td>${x.accion}</td></tr>`).join('')}</table>`}catch(x){toast(x.message)}}
 SB.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')login()});
-start();
+start();/* EDITAR PRODUCTOS */
+const _vp=V.productos;
+V.productos=()=>_vp()
+ .replace(/<select name="pid"\s*>/,'<select name="pid" onchange="pf(this.value)">')
+ .replace('<h4>Costo unitario completo</h4>','<label class="ck"><input type="checkbox" name="activo" checked> Producto activo (a la venta)</label><h4>Costo unitario completo</h4>');
+function pf(id){const f=document.querySelector('#m form'),p=S.prod.find(x=>x.id===id);if(!f)return;
+ if(!p){['codigo','nombre','especie','proveedor','stock_minimo'].forEach(k=>f[k].value='');f.activo.checked=true;return}
+ f.codigo.value=p.codigo||'';f.nombre.value=p.nombre||'';f.especie.value=p.especie||'';f.categoria.value=p.categoria||'ornamental';
+ f.proveedor.value=p.proveedor||'';f.stock_minimo.value=p.stock_minimo??0;f.activo.checked=p.activo!==false;
+ ['costo_adquisicion','transporte','materiales','mano_obra','otros_directos','precio_venta','precio_minimo','margen_objetivo'].forEach(k=>f[k].value='')}
+const _hp=H.prod;
+H.prod=async d=>{
+ if(d.pid){const u={};
+  if(d.codigo&&d.codigo.trim())u.codigo=d.codigo.trim();
+  if(d.nombre&&d.nombre.trim())u.nombre=d.nombre.trim();
+  u.especie=d.especie||null;u.categoria=d.categoria;u.proveedor=d.proveedor||null;
+  u.stock_minimo=parseInt(d.stock_minimo)||0;u.activo=d.activo==='on';
+  await ok(SB.from('productos').update(u).eq('id',d.pid))}
+ await _hp(d)};
 </script></body></html>
