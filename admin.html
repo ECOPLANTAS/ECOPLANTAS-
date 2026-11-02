@@ -183,23 +183,53 @@ V.config=()=>`<div class="card"><h3>Configuración</h3><form onsubmit="return su
 function pruebas(){const T=[['Caso 1 · ganancia 1.500',6500-5000===1500],['Caso 1 · recargo 30 %',M.recargo(6500,5000).toFixed(2)==='30.00'],['Caso 1 · margen 23,08 %',M.margen(6500,5000).toFixed(2)==='23.08'],['Caso 2 · precio 10.000',Math.round(M.precioMargen(7000,30))===10000],['Caso 3 · equilibrio 50 unidades',M.pe(200000,10000-6000)===50],['Caso 4 · pérdida de 1.000',10000-11000===-1000]];return T.map(([n,o])=>`<div class="${o?'pos':'neg'}">${o?'✔':'✘'} ${n}</div>`).join('')}
 async function aud(){try{const r=await ok(SB.from('auditoria').select('*').order('fecha',{ascending:false}).limit(30));$('#aud').innerHTML=`<table><tr><th>Fecha</th><th>Tabla</th><th>Acción</th></tr>${r.map(x=>`<tr><td>${x.fecha.slice(0,16).replace('T',' ')}</td><td>${x.tabla}</td><td>${x.accion}</td></tr>`).join('')}</table>`}catch(x){toast(x.message)}}
 SB.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT')login()});
-start();/* EDITAR PRODUCTOS */
-const _vp=V.productos;
-V.productos=()=>_vp()
- .replace(/<select name="pid"\s*>/,'<select name="pid" onchange="pf(this.value)">')
- .replace('<h4>Costo unitario completo</h4>','<label class="ck"><input type="checkbox" name="activo" checked> Producto activo (a la venta)</label><h4>Costo unitario completo</h4>');
-function pf(id){const f=document.querySelector('#m form'),p=S.prod.find(x=>x.id===id);if(!f)return;
- if(!p){['codigo','nombre','especie','proveedor','stock_minimo'].forEach(k=>f[k].value='');f.activo.checked=true;return}
- f.codigo.value=p.codigo||'';f.nombre.value=p.nombre||'';f.especie.value=p.especie||'';f.categoria.value=p.categoria||'ornamental';
- f.proveedor.value=p.proveedor||'';f.stock_minimo.value=p.stock_minimo??0;f.activo.checked=p.activo!==false;
- ['costo_adquisicion','transporte','materiales','mano_obra','otros_directos','precio_venta','precio_minimo','margen_objetivo'].forEach(k=>f[k].value='')}
-const _hp=H.prod;
-H.prod=async d=>{
- if(d.pid){const u={};
-  if(d.codigo&&d.codigo.trim())u.codigo=d.codigo.trim();
-  if(d.nombre&&d.nombre.trim())u.nombre=d.nombre.trim();
-  u.especie=d.especie||null;u.categoria=d.categoria;u.proveedor=d.proveedor||null;
-  u.stock_minimo=parseInt(d.stock_minimo)||0;u.activo=d.activo==='on';
-  await ok(SB.from('productos').update(u).eq('id',d.pid))}
- await _hp(d)};
+/* MEJORAS: cobros, caja, reparto y editar gastos */
+TABS.splice(5,0,['caja','Caja']);
+S.caja=[];S.rep2=[];
+const _ld=load;
+load=async()=>{await _ld();
+ const [a,b]=await Promise.all([SB.from('movimientos_caja').select('*').order('fecha',{ascending:false}).limit(200),SB.from('reparto_gastos_producto').select('*').order('mes',{ascending:false})]);
+ S.caja=a.data||[];S.rep2=b.data||[]};
+
+/* 1. Cobrar ventas pendientes */
+const _vv=V.ventas;
+V.ventas=()=>{const P=vis(S.ventas).filter(v=>!v.anulada&&N(v.ingreso_neto)-N(v.monto_cobrado)>0.004);
+ const card=P.length?`<div class="card w"><h3>Cobros pendientes · ${fmt(sum(P,'ingreso_neto')-sum(P,'monto_cobrado'))}</h3><table><tr><th>Fecha</th><th>Producto</th><th>Total</th><th>Falta cobrar</th><th></th></tr>${P.map(v=>`<tr><td>${v.fecha}</td><td>${esc(v.productos?.nombre)}</td><td>${fmt(v.ingreso_neto)}</td><td><b>${fmt(N(v.ingreso_neto)-N(v.monto_cobrado))}</b></td><td><button class="s" onclick="cobrar('${v.id}')">Cobrar</button></td></tr>`).join('')}</table></div>`:'';
+ return card+_vv()};
+async function cobrar(id){const v=S.ventas.find(x=>x.id===id);if(!v)return;const falta=N(v.ingreso_neto)-N(v.monto_cobrado);
+ const t=prompt('¿Cuánto cobraste? (falta '+fmt(falta)+')',String(Math.round(falta)));if(t===null)return;
+ const m=N(String(t).replace(/\./g,'').replace(',','.'));
+ if(!(m>0)||m>falta+0.004){toast('Monto inválido: máximo '+fmt(falta));return}
+ try{await ok(SB.from('cobros').insert({venta_id:id,monto:m,fecha:hoy()}));toast('Cobro registrado ✔');await load();draw()}catch(x){toast(x.message||String(x))}}
+
+/* 2. Retiros y aportes */
+V.caja=()=>{const L=vis(S.caja),ok2=L.filter(x=>!x.anulado);
+ return `<div class="grid"><div class="k"><small>Aportes (total)</small><b class="pos">${fmt(sum(ok2.filter(x=>x.tipo==='aporte'),'monto'))}</b></div><div class="k"><small>Retiros (total)</small><b class="neg">${fmt(sum(ok2.filter(x=>x.tipo==='retiro'),'monto'))}</b></div></div>
+ <div class="card"><h3>Retiros y aportes</h3><small>Retiro = plata que sacas del negocio para ti. Aporte = plata tuya que pones en el negocio.</small><form onsubmit="return sub(event,'caja')">${SEL('tipo','Tipo',[['retiro','Retiro (saco plata)'],['aporte','Aporte (pongo plata)']])}${NUM('monto','Monto (Gs.)','required')}${F('concepto','Para qué (opcional)')}<label>Fecha<input type="date" name="fecha" value="${hoy()}"></label><label class="ck"><input type="checkbox" name="es_prueba" ${S.prueba?'checked':''}> Dato de prueba</label><button class="p">Registrar</button></form></div>
+ <div class="card w"><table><tr><th>Fecha</th><th>Tipo</th><th>Monto</th><th>Concepto</th><th></th></tr>${L.slice(0,60).map(x=>`<tr style="${x.anulado?'opacity:.5;text-decoration:line-through':''}"><td>${x.fecha}</td><td>${x.tipo}</td><td>${fmt(x.monto)}</td><td>${esc(x.concepto)}</td><td>${x.anulado?'':`<button class="s" onclick="anular('movimientos_caja','${x.id}')">Anular</button>`}</td></tr>`).join('')}</table></div>`};
+H.caja=async d=>{if(!(N(d.monto)>0))throw new Error('El monto debe ser mayor que 0');
+ await ok(SB.from('movimientos_caja').insert({fecha:d.fecha||hoy(),tipo:d.tipo,monto:N(d.monto),concepto:d.concepto||null,es_prueba:d.es_prueba}))};
+const _vp2=V.panel;
+V.panel=()=>_vp2().replace('Flujo de caja estimado = cobros − gastos pagados − compras de inventario (se asume que las compras se pagan al registrarlas).','Flujo de caja = cobros − gastos pagados − compras de inventario + aportes − retiros (las compras se consideran pagadas al registrarlas; los cobros, en la fecha en que los registras).');
+
+/* 3. Reparto de gastos compartidos */
+const _va=V.analisis;
+V.analisis=()=>{const R=vis(S.rep2),ing=S.cfg.metodo_prorrateo_costos_compartidos==='ingresos';
+ return _va()+`<div class="card w"><h3>Gastos compartidos repartidos por producto</h3><small>Se reparten los gastos con clasificación "indirecto" (alquiler, luz, internet…) según ${ing?'los ingresos':'las unidades vendidas'} de cada producto en el mes. Se cambia en Config.</small><table><tr><th>Mes</th><th>Producto</th><th>Unid.</th><th>Ganancia antes</th><th>Gasto asignado</th><th>Por unidad</th><th>Ganancia final</th></tr>${R.map(x=>`<tr><td>${x.mes.slice(0,7)}</td><td>${esc(x.nombre)}</td><td>${x.unidades}</td><td>${fmt(x.ganancia_antes_gastos)}</td><td>${fmt(x.gasto_asignado)}</td><td>${fmt(x.gasto_por_unidad)}</td><td class="${cls(x.ganancia_neta_tras_gastos)}">${fmt(x.ganancia_neta_tras_gastos)}</td></tr>`).join('')||'<tr><td colspan="7"><small>Sin datos todavía</small></td></tr>'}</table><small>Los gastos de meses sin ventas no se pueden repartir.</small></div>`};
+const _vc=V.config;
+V.config=()=>_vc()+`<div class="card"><h3>Reparto de gastos compartidos</h3><form onsubmit="return sub(event,'metodo')">${SEL('metodo','Repartir según',[['unidades_vendidas','Unidades vendidas'],['ingresos','Ingresos de cada producto']])}<button class="p">Guardar</button></form><small>Elegido hoy: ${S.cfg.metodo_prorrateo_costos_compartidos==='ingresos'?'ingresos':'unidades vendidas'}</small></div>`;
+H.metodo=async d=>{await ok(SB.from('config').upsert({clave:'metodo_prorrateo_costos_compartidos',valor:d.metodo,actualizado_en:new Date().toISOString()},{onConflict:'clave'}))};
+
+/* 4. Editar gastos */
+const _vg=V.gastos;
+V.gastos=()=>{const L=vis(S.gastos).filter(g=>!g.anulado).slice(0,60);
+ const ed=`<div class="card"><h3>Editar un gasto</h3><small>Elige el gasto, cambia lo que necesites y guarda. El cambio queda en el historial.</small><form id="edg" onsubmit="return sub(event,'gastoEd')">${SEL('gid','Gasto',[['','— elegir —'],...L.map(g=>[g.id,g.fecha+' · '+g.concepto+' · '+fmt(g.monto)])],'onchange="pg(this.value)"')}${F('concepto','Concepto')}${NUM('monto','Monto (Gs.)')}${SEL('categoria','Categoría',CATS)}${SEL('naturaleza','Tipo',['variable','fijo'])}${SEL('clasificacion','Clasificación',['directo','indirecto','comercial','financiero','tributario'])}${SEL('estado_pago','Estado',['pagado','pendiente'])}${F('proveedor','Proveedor')}<label>Fecha del gasto<input type="date" name="fecha"></label><button class="p">Guardar cambios</button></form></div>`;
+ const h=_vg().replace('name="es_prueba">','name="es_prueba" '+(S.prueba?'checked':'')+'>'),mk='<div class="card w"><table><tr><th>Fecha</th><th>Concepto</th>';
+ return h.includes(mk)?h.replace(mk,()=>ed+mk):h+ed};
+function pg(id){const f=document.querySelector('#edg'),g=S.gastos.find(x=>x.id===id);if(!f||!g)return;
+ f.concepto.value=g.concepto||'';f.monto.value=g.monto;f.categoria.value=g.categoria;f.naturaleza.value=g.naturaleza;f.clasificacion.value=g.clasificacion;f.estado_pago.value=g.estado_pago;f.proveedor.value=g.proveedor||'';f.fecha.value=g.fecha}
+H.gastoEd=async d=>{if(!d.gid)throw new Error('Elige el gasto que quieres editar');const g=S.gastos.find(x=>x.id===d.gid),m=N(d.monto);
+ if(!(m>0))throw new Error('El monto debe ser mayor que 0');if(!d.concepto)throw new Error('El concepto no puede quedar vacío');
+ await ok(SB.from('gastos').update({concepto:d.concepto,monto:m,categoria:d.categoria,naturaleza:d.naturaleza,clasificacion:d.clasificacion,estado_pago:d.estado_pago,fecha_pago:d.estado_pago==='pagado'?(g?.fecha_pago||d.fecha||hoy()):null,proveedor:d.proveedor||null,fecha:d.fecha||g.fecha}).eq('id',d.gid))};
+ start();
 </script></body></html>
