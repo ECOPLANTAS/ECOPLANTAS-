@@ -83,6 +83,29 @@ H.prod=async d=>{let id=d.pid;
   id=(await ok(SB.from('productos').insert({codigo:d.codigo.trim(),nombre:d.nombre.trim(),especie:d.especie||null,categoria:d.categoria,proveedor:d.proveedor||null,stock_minimo:parseInt(d.stock_minimo)||0,es_prueba:d.es_prueba}).select('id').single())).id}
  if(d.costo_adquisicion!=='')await ok(SB.from('costos_producto').insert({producto_id:id,costo_adquisicion:N(d.costo_adquisicion),transporte:N(d.transporte),materiales:N(d.materiales),mano_obra:N(d.mano_obra),otros_directos:N(d.otros_directos),es_estimado:!!d.es_estimado}));
  if(d.precio_venta!=='')await ok(SB.from('precios_producto').insert({producto_id:id,precio_venta:N(d.precio_venta),precio_minimo:d.precio_minimo===''?null:N(d.precio_minimo),margen_objetivo:d.margen_objetivo===''?null:N(d.margen_objetivo)}))};
+ H.borrarProd = async (id, nombre) => {
+  const confirmacion = confirm(`⚠️ ¿Estás seguro de que deseas ELIMINAR el producto "${nombre}"?\n\nNota: Si este producto ya tiene ventas, costos o inventario asociado, la base de datos podría bloquear el borrado para proteger tu historial financiero.`);
+  if (!confirmacion) return;
+
+  try {
+    // INTENTO 1: Borrado suave (Recomendado). Marca el producto como inactivo.
+    const { error: softError } = await SB.from('productos').update({ activo: false }).eq('id', id);
+    
+    if (softError) {
+      // Si falla (ej. no existe la columna 'activo'), intentamos el borrado físico
+      console.warn("Borrado suave no disponible, intentando borrado físico:", softError.message);
+      const { error: hardError } = await SB.from('productos').delete().eq('id', id);
+      if (hardError) throw hardError;
+    }
+    
+    toast('✅ Producto eliminado o desactivado correctamente');
+    await load(); // Recarga los datos frescos desde Supabase
+    draw();       // Vuelve a dibujar la interfaz
+  } catch (x) {
+    console.error("Error al eliminar:", x);
+    toast('❌ Error: No se pudo eliminar. Es probable que tenga ventas, costos o inventario vinculado.');
+  }
+};
 H.venta=async d=>{const p=S.prod.find(x=>x.id===d.producto_id);
  await ok(SB.from('ventas').insert({producto_id:d.producto_id,fecha:d.fecha||hoy(),cantidad:parseInt(d.cantidad),precio_unitario:d.precio_unitario===''?N(p?.precio_venta):N(d.precio_unitario),descuento:N(d.descuento),medio_pago:d.medio_pago,comision_cobro:N(d.comision_cobro),costos_variables_extra:N(d.costos_variables_extra),estado_cobro:d.estado_cobro,monto_cobrado:N(d.monto_cobrado)}))};
 H.gasto=async d=>{await ok(SB.from('gastos').insert({fecha:d.fecha||hoy(),concepto:d.concepto,categoria:d.categoria,naturaleza:d.naturaleza,clasificacion:d.clasificacion,monto:N(d.monto),estado_pago:d.estado_pago,fecha_pago:d.estado_pago==='pagado'?(d.fecha||hoy()):null,proveedor:d.proveedor||null,es_prueba:d.es_prueba}))};
