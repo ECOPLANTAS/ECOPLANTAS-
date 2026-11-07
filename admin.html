@@ -254,5 +254,60 @@ function pg(id){const f=document.querySelector('#edg'),g=S.gastos.find(x=>x.id==
 H.gastoEd=async d=>{if(!d.gid)throw new Error('Elige el gasto que quieres editar');const g=S.gastos.find(x=>x.id===d.gid),m=N(d.monto);
  if(!(m>0))throw new Error('El monto debe ser mayor que 0');if(!d.concepto)throw new Error('El concepto no puede quedar vacío');
  await ok(SB.from('gastos').update({concepto:d.concepto,monto:m,categoria:d.categoria,naturaleza:d.naturaleza,clasificacion:d.clasificacion,estado_pago:d.estado_pago,fecha_pago:d.estado_pago==='pagado'?(g?.fecha_pago||d.fecha||hoy()):null,proveedor:d.proveedor||null,fecha:d.fecha||g.fecha}).eq('id',d.gid))};
+ /* ECOPLANTAS · Productos: editar, ocultar y borrar */
+(function(){
+if(window.__eco4)return;window.__eco4=1;
+const hd=document.querySelector('header');
+if(hd){hd.style.cssText='display:flex;justify-content:space-between;align-items:center';hd.innerHTML='<b>🌿 ECOPLANTAS · Gestión</b><span id="hdr"></span>'}
+const _dr=draw;
+draw=function(){_dr();const h=document.getElementById('hdr');if(h)h.innerHTML=(S.prueba?'<span style="background:#e08a00;border-radius:10px;padding:2px 8px;margin-right:8px;font-size:12px">PRUEBA</span>':'')+'<button class="s" onclick="salir()">Salir</button>'};
+const _lg=login;
+login=function(m){const h=document.getElementById('hdr');if(h)h.innerHTML='';_lg(m)};
+
+V.productos=()=>{const P=vis(S.prod),I=Object.fromEntries(S.inv.map(i=>[i.producto_id,i]));
+ return `${S.prueba?'<div class="warn">Modo PRUEBA: lo que cargues aquí se puede borrar sin afectar tus datos reales.</div>':''}
+<div class="card"><h3 id="ptit">Producto nuevo</h3><small>Escribe los números sin puntos (ejemplo: 25000). El margen objetivo es un porcentaje (ejemplo: 40). Si editas un producto, deja vacíos los costos que no cambian.</small>
+<form id="pf" onsubmit="return sub(event,'prod')"><input type="hidden" name="pid">${F('codigo','Código único')}${F('nombre','Nombre comercial')}${F('especie','Especie')}${SEL('categoria','Categoría',['ornamental','frutal','medicinal','aromatica','otra'])}${F('proveedor','Proveedor')}${NUM('stock_minimo','Stock mínimo','step="1"')}<label class="ck"><input type="checkbox" name="activo" checked> Producto activo (a la venta)</label>
+<h4>Costo unitario completo</h4>${NUM('costo_adquisicion','Costo de compra o producción')}${NUM('transporte','Transporte y flete (por unidad)')}${NUM('materiales','Maceta, sustrato, fertilizante, etiquetas')}${NUM('mano_obra','Mano de obra directa')}${NUM('otros_directos','Otros costos directos')}${CK('es_estimado','Estos costos son una estimación')}
+<h4>Precio</h4>${NUM('precio_venta','Precio de venta actual')}${NUM('precio_minimo','Precio mínimo aceptable')}${NUM('margen_objetivo','Margen objetivo (%)','max="99.99"')}<label class="ck"><input type="checkbox" name="es_prueba" ${S.prueba?'checked':''}> Producto de prueba</label>
+<button class="p">Guardar</button><button type="button" class="s" onclick="nuevoP()">Producto nuevo / limpiar</button></form></div>
+<div class="card w"><table><tr><th>Producto</th><th>Costo</th><th>Precio</th><th>Ganancia</th><th>Margen</th><th>Stock</th><th></th></tr>${P.map(p=>`<tr style="${p.activo===false?'opacity:.5':''}"><td>${esc(p.codigo)} · ${esc(p.nombre)}${p.activo===false?' (oculto)':''}</td><td>${fmt(p.costo_total)}${p.es_estimado?' (est.)':''}</td><td>${fmt(p.precio_venta)}</td><td class="${cls(p.ganancia_unitaria)}">${fmt(p.ganancia_unitaria)}</td><td>${pc(p.margen_pct)}</td><td>${I[p.id]?.stock??0}</td><td><button class="s" onclick="editarP('${p.id}')">Editar</button><button class="s" onclick="ocultarP('${p.id}')">${p.activo===false?'Mostrar':'Ocultar'}</button><button class="s" style="color:#b3261e;border-color:#b3261e" onclick="borrarP('${p.id}')">Borrar</button></td></tr>`).join('')||'<tr><td colspan="7"><small>Todavía no hay productos.</small></td></tr>'}</table></div>
+${S.prueba?'<div class="card"><button class="p" onclick="borrarPruebas()">Borrar TODO lo de prueba</button><br><small>Borra productos, ventas, gastos y caja de prueba. Los datos reales no se tocan.</small></div>':'<div class="card"><small>Ocultar deja de mostrar el producto en Ventas y conserva su historial. Borrar solo funciona si nunca tuvo ventas ni movimientos de stock.</small></div>'}`};
+
+window.nuevoP=function(){const f=document.querySelector('#pf');if(!f)return;f.reset();f.pid.value='';document.querySelector('#ptit').textContent='Producto nuevo'};
+window.editarP=function(id){const f=document.querySelector('#pf'),p=S.prod.find(x=>x.id===id);if(!f||!p)return;
+ f.reset();f.pid.value=id;f.codigo.value=p.codigo||'';f.nombre.value=p.nombre||'';f.especie.value=p.especie||'';f.categoria.value=p.categoria||'ornamental';
+ f.proveedor.value=p.proveedor||'';f.stock_minimo.value=p.stock_minimo??0;f.activo.checked=p.activo!==false;
+ f.precio_venta.value=p.precio_venta??'';f.precio_minimo.value=p.precio_minimo??'';f.margen_objetivo.value=p.margen_objetivo??'';
+ document.querySelector('#ptit').textContent='Editando: '+p.nombre+' (costo actual '+fmt(p.costo_total)+')';f.scrollIntoView({behavior:'smooth'})};
+
+H.prod=async d=>{
+ const codigo=(d.codigo||'').trim(),nombre=(d.nombre||'').trim();
+ if(!codigo||!nombre)throw new Error('El código y el nombre son obligatorios');
+ const cur=d.pid?S.prod.find(x=>x.id===d.pid):null,mo=d.margen_objetivo===''?null:N(d.margen_objetivo);
+ if(mo!==null&&(mo<0||mo>=100))throw new Error('El margen objetivo es un porcentaje entre 0 y 99 (ejemplo: 40)');
+ const conCosto=d.costo_adquisicion!=='',conPrecio=d.precio_venta!=='';
+ const costo=conCosto?N(d.costo_adquisicion)+N(d.transporte)+N(d.materiales)+N(d.mano_obra)+N(d.otros_directos):(cur?cur.costo_total:null);
+ const precio=conPrecio?N(d.precio_venta):(cur?cur.precio_venta:null);
+ if(precio!==null&&N(precio)>0&&N(precio)<1000&&!confirm('El precio es de solo '+fmt(precio)+'. ¿No quisiste escribir '+fmt(N(precio)*1000)+'? Presiona Cancelar para corregirlo.'))throw new Error('No se guardó. Corrige el precio.');
+ if(costo!==null&&precio!==null&&N(precio)<N(costo)&&!confirm('El precio ('+fmt(precio)+') es menor que el costo ('+fmt(costo)+'): vendes con pérdida. ¿Guardar igual?'))throw new Error('No se guardó. Corrige el precio o el costo.');
+ const base={codigo,nombre,especie:d.especie||null,categoria:d.categoria,proveedor:d.proveedor||null,stock_minimo:parseInt(d.stock_minimo)||0,activo:d.activo==='on'};
+ let id=d.pid;
+ if(id)await ok(SB.from('productos').update(base).eq('id',id));
+ else id=(await ok(SB.from('productos').insert({...base,es_prueba:d.es_prueba}).select('id').single())).id;
+ if(conCosto)await ok(SB.from('costos_producto').insert({producto_id:id,costo_adquisicion:N(d.costo_adquisicion),transporte:N(d.transporte),materiales:N(d.materiales),mano_obra:N(d.mano_obra),otros_directos:N(d.otros_directos),es_estimado:!!d.es_estimado}));
+ const pmin=d.precio_minimo===''?null:N(d.precio_minimo);
+ const cambio=!cur||N(d.precio_venta)!==N(cur.precio_venta)||pmin!==(cur.precio_minimo==null?null:N(cur.precio_minimo))||mo!==(cur.margen_objetivo==null?null:N(cur.margen_objetivo));
+ if(conPrecio&&cambio)await ok(SB.from('precios_producto').insert({producto_id:id,precio_venta:N(d.precio_venta),precio_minimo:pmin,margen_objetivo:mo}))};
+
+window.ocultarP=async function(id){const p=S.prod.find(x=>x.id===id);if(!p)return;const oculto=p.activo===false;
+ if(!oculto&&!confirm('¿Ocultar "'+p.nombre+'"? Deja de aparecer en Ventas, pero conserva todo su historial.'))return;
+ try{await ok(SB.from('productos').update({activo:oculto}).eq('id',id));toast(oculto?'Producto visible ✔':'Producto oculto ✔');await load();draw()}catch(x){toast(x.message||String(x))}};
+window.borrarP=async function(id){const p=S.prod.find(x=>x.id===id);if(!p)return;
+ if(!confirm(p.es_prueba?'¿Borrar "'+p.nombre+'" y todo lo de prueba que tenga (ventas y movimientos)?':'¿Borrar "'+p.nombre+'" definitivamente? Solo se puede si nunca tuvo ventas ni movimientos de stock.'))return;
+ try{toast(await ok(SB.rpc('borrar_producto',{p_id:id})));await load();draw()}catch(x){toast(x.message||String(x))}};
+window.borrarPruebas=async function(){
+ if(!confirm('¿Borrar TODOS los datos de prueba (productos, ventas, gastos y caja)? Los datos reales no se tocan.'))return;
+ try{toast(await ok(SB.rpc('borrar_datos_prueba',{p_producto:null})));await load();draw()}catch(x){toast(x.message||String(x))}};})();
  start();
 </script></body></html>
