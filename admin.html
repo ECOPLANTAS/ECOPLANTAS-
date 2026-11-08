@@ -59,7 +59,38 @@ async function auth(e){e.preventDefault();const f=e.target,up=e.submitter?.value
  const r=up?await SB.auth.signUp(c):await SB.auth.signInWithPassword(c);
  if(r.error){toast(r.error.message,true);return false}
  if(up&&!r.data.session){login('Cuenta creada. Confirma el enlace que llegó a tu correo y luego entra.');return false}
- start();return false}
+ /* ECOPLANTAS: editar y borrar productos */
+(function(){
+if(window.__eco3)return;window.__eco3=1;
+if(!window.pf){
+ const _vp=V.productos;
+ V.productos=()=>_vp()
+  .replace(/<select name="pid"\s*>/,'<select name="pid" onchange="pf(this.value)">')
+  .replace('<h4>Costo unitario completo</h4>','<label class="ck"><input type="checkbox" name="activo" checked> Producto activo (a la venta)</label><h4>Costo unitario completo</h4>');
+ window.pf=function(id){const f=document.querySelector('#m form'),p=S.prod.find(x=>x.id===id);if(!f)return;
+  if(!p){['codigo','nombre','especie','proveedor','stock_minimo'].forEach(k=>f[k].value='');f.activo.checked=true;return}
+  f.codigo.value=p.codigo||'';f.nombre.value=p.nombre||'';f.especie.value=p.especie||'';f.categoria.value=p.categoria||'ornamental';
+  f.proveedor.value=p.proveedor||'';f.stock_minimo.value=p.stock_minimo??0;f.activo.checked=p.activo!==false;
+  ['costo_adquisicion','transporte','materiales','mano_obra','otros_directos','precio_venta','precio_minimo','margen_objetivo'].forEach(k=>f[k].value='')};
+ const _hp=H.prod;
+ H.prod=async d=>{
+  if(d.pid){const u={};
+   if(d.codigo&&d.codigo.trim())u.codigo=d.codigo.trim();
+   if(d.nombre&&d.nombre.trim())u.nombre=d.nombre.trim();
+   u.especie=d.especie||null;u.categoria=d.categoria;u.proveedor=d.proveedor||null;
+   u.stock_minimo=parseInt(d.stock_minimo)||0;u.activo=d.activo==='on';
+   await ok(SB.from('productos').update(u).eq('id',d.pid))}
+  await _hp(d)};
+}
+const _vb=V.productos;
+V.productos=()=>{const h=_vb();
+ if(!S.prueba)return h+'<div class="card"><small>Los productos reales no se borran: para dejar de usarlos, elígelos en la lista y desmarca "Producto activo". Para borrar productos de prueba, activa "Datos de PRUEBA" en Config.</small></div>';
+ const P=vis(S.prod);
+ return h+`<div class="card"><h3>Borrar datos de prueba</h3><small>Solo borra datos de PRUEBA, con sus ventas y movimientos. Los datos reales no se tocan.</small>${P.map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0"><span>${esc(p.codigo)} · ${esc(p.nombre)}</span><button class="s" onclick="borrarP('${p.id}')">Borrar</button></div>`).join('')||'<div><small>No hay productos de prueba.</small></div>'}<button class="p" onclick="borrarP(null)">Borrar TODO lo de prueba</button></div>`};
+window.borrarP=async function(id){
+ if(!confirm(id?'¿Borrar este producto de prueba con sus ventas y movimientos?':'¿Borrar TODOS los datos de prueba (productos, ventas, gastos y caja)? Los datos reales no se tocan.'))return;
+ try{const r=await ok(SB.rpc('borrar_datos_prueba',{p_producto:id}));toast(r);await load();draw()}catch(x){toast(x.message||String(x))}};})();
+                       start();return false}
 async function salir(){await SB.auth.signOut();login()}
 async function start(){const{data:{session}}=await SB.auth.getSession();if(!session)return login();
  const a=await SB.from('admins').select('user_id');
