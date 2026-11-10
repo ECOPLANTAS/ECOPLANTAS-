@@ -462,5 +462,97 @@ async function aud(){try{const r=await ok(SB.from('auditoria').select('*').order
   if(a&&d){const k=Object.keys(d).filter(k=>JSON.stringify(a[k])!==JSON.stringify(d[k])).slice(0,6);return k.map(k=>`${esc(k)}: ${esc(JSON.stringify(a[k]))} → ${esc(JSON.stringify(d[k]))}`).join('<br>')||'—'}
   const o=d||a;return o?esc(JSON.stringify(o).slice(0,160)):'—'};
  $('#aud').innerHTML=`<table><tr><th>Fecha y hora (Paraguay)</th><th>Módulo</th><th>Operación</th><th>Registro</th><th>Usuario</th><th>Detalle (antes → después)</th></tr>${r.map(x=>`<tr><td>${fh(x.fecha)}</td><td>${esc(x.tabla)}</td><td>${esc(x.accion)}</td><td>${esc(String(x.registro_id||'').slice(0,8))}</td><td>${esc(String(x.usuario||'').slice(0,8))}</td><td>${det(x)}</td></tr>`).join('')}</table>`}catch(x){toast(x.message,true)}}
+ /* ECOPLANTAS · Módulo financiero: calculadora de precios, proyección y control de gastos */
+(function(){
+if(window.__eco7)return;window.__eco7=1;
+window.__eco3=1; /* anula un bloque viejo que quedó pegado dentro de auth() */
+const st=document.createElement('style');
+st.textContent='.fin{display:grid;grid-template-columns:190px 1fr;gap:12px}.fin aside{background:#fff;border:1px solid var(--b);border-radius:14px;padding:8px;height:max-content;position:sticky;top:56px}.fin aside button{display:block;width:100%;text-align:left;border:0;background:none;padding:11px 12px;border-radius:10px;font:inherit;color:var(--g)}.fin aside button.on{background:var(--v2);color:var(--v);font-weight:600}.fin section{min-width:0}.fk .k{background:linear-gradient(135deg,#e8f3ea,#f6faf6);border:1px solid var(--b);border-radius:14px}.fin .card{border-radius:14px;box-shadow:0 1px 3px rgba(31,107,58,.08)}@media(max-width:720px){.fin{grid-template-columns:1fr}.fin aside{display:flex;overflow-x:auto;position:static}.fin aside button{width:auto;white-space:nowrap}}';
+document.head.appendChild(st);
+const R0=Math.round;
+['electricidad','agua','insumos','fertilizantes','macetas'].forEach(c=>{if(!CATS.includes(c))CATS.push(c)});
+S.finSec='calc';S.finSim=null;S.finRes=null;S.finOut='';S.finCalc={};S.esc=[];
+const FIN={};
+FIN.precios=(c,p)=>{const mk=R0(c*(1+p/100)),mg=R0(c/(1-p/100)),f=(pr)=>({precio:pr,gan:pr-c,margen:(pr-c)/pr*100,recargo:(pr-c)/c*100});return {mk:f(mk),mg:f(mg)}};
+FIN.valPrecio=(sc,sp)=>{const c=Number(sc),p=Number(sp);
+ if(sc===''||isNaN(c)||c<=0)return 'El costo debe ser un número mayor que 0.';
+ if(sp===''||isNaN(p))return 'Escribe el porcentaje a aplicar.';
+ if(p<0)return 'El porcentaje no puede ser negativo.';
+ if(p>=100)return 'El margen debe ser menor a 100 %: con 100 % o más el precio sería imposible.';return ''};
+FIN.valSim=s=>{const f=['capital','ventas','margen','gastos'];
+ if(f.some(k=>s[k]===''||s[k]==null||isNaN(Number(s[k]))))return 'Completa todos los campos con números.';
+ if(f.some(k=>Number(s[k])<0))return 'No se aceptan valores negativos.';
+ if(Number(s.margen)>=100)return 'El margen de beneficio debe ser menor a 100 %.';
+ if(![1,2,3,5].includes(Number(s.anios)))return 'Elige 1, 2, 3 o 5 años.';return ''};
+FIN.proy=(c0,v,m,g,anios)=>{const meses=anios*12,um=v*m/100-g,rows=[];
+ for(let a=1;a<=anios;a++)rows.push({a,ing:v*12,costos:v*12*(1-m/100),gastos:g*12,util:um*12,cap:c0+um*12*a});
+ return {meses,um,ing:v*meses,costos:v*(1-m/100)*meses,gastos:g*meses,bruta:v*m/100*meses,neta:um*meses,capFinal:c0+um*meses,rows}};
+window.FIN=FIN;
+const compact=n=>Math.abs(n)>=1e6?(n/1e6).toFixed(1)+' M':Math.abs(n)>=1e3?R0(n/1e3)+' mil':String(R0(n));
+function chart(c0,rows){const v=[['Inicio',c0],...rows.map(x=>['Año '+x.a,x.cap])],mx=Math.max(0,...v.map(x=>x[1])),mn=Math.min(0,...v.map(x=>x[1])),rg=(mx-mn)||1,W=400,H=150,bw=Math.min(50,W/v.length-12),y=t=>H*(mx-t)/rg;
+ return `<svg viewBox="0 0 ${W} ${H+34}" style="width:100%;max-width:520px" role="img" aria-label="Evolución del capital">${v.map((x,i)=>{const bx=(i+.5)*W/v.length-bw/2,y0=y(Math.max(x[1],0)),y1=y(Math.min(x[1],0));return `<rect x="${bx}" y="${y0+10}" width="${bw}" height="${Math.max(2,y1-y0)}" rx="4" fill="${x[1]<0?'#b3261e':'#1f6b3a'}"/><text x="${bx+bw/2}" y="${y0+6}" font-size="10" text-anchor="middle" fill="#1b2a1f">${compact(x[1])}</text><text x="${bx+bw/2}" y="${H+26}" font-size="11" text-anchor="middle" fill="#6b7a70">${x[0]}</text>`}).join('')}<line x1="0" x2="${W}" y1="${y(0)+10}" y2="${y(0)+10}" stroke="#d8e4da"/></svg>`}
+function defaults(){const d30=new Date(Date.now()-29*864e5).toLocaleDateString('en-CA',{timeZone:TZ}),vv=vis(S.ventas).filter(v=>!v.anulada&&v.fecha>=d30),ing=sum(vv,'ingreso_neto'),gb=sum(vv,'ganancia_bruta'),gs=sum(vis(S.gastos).filter(g=>!g.anulado&&g.fecha>=d30),'monto');
+ return {nombre:'ECOPLANTAS',capital:'',ventas:ing?R0(ing):'',margen:ing>0?Math.round(gb/ing*10000)/100:'',gastos:gs?R0(gs):'',anios:1}}
+function kpi(s){const k=(l,v,c='')=>`<div class="k"><small>${l}</small><b class="${c}">${v}</b></div>`,r=FIN.valSim(s)?null:FIN.proy(N(s.capital),N(s.ventas),N(s.margen),N(s.gastos),N(s.anios));
+ return `<div class="grid fk">${k('Capital inicial',s.capital===''?'—':fmt(s.capital))}${k('Ventas mensuales',s.ventas===''?'—':fmt(s.ventas))}${k('Ganancias estimadas (mes)',r?fmt(N(s.ventas)*N(s.margen)/100):'—')}${k('Gastos totales (período)',r?fmt(r.gastos):'—')}${k('Utilidad neta (período)',r?fmt(r.neta):'—',r?cls(r.neta):'')}${k('Proyección financiera (capital final)',r?fmt(r.capFinal):'—',r?cls(r.neta):'')}</div>`}
+const FV={};
+V.fin=()=>{const nav=[['calc','Calculadora de precios'],['proy','Proyección del negocio'],['gas','Gastos del mes'],['esc','Escenarios guardados']],s=S.finSim||defaults();
+ return `<div class="fin"><aside>${nav.map(([k,l])=>`<button class="${S.finSec===k?'on':''}" onclick="finGo('${k}')">${l}</button>`).join('')}</aside><section>${kpi(s)}${FV[S.finSec]()}</section></div>`};
+window.finGo=k=>{S.finSec=k;draw()};
+window.finLimpiar=(f,o)=>{const F0=$('#'+f);if(!F0)return;F0.querySelectorAll('input:not([type=hidden])').forEach(i=>i.value='');F0.querySelectorAll('select').forEach(x=>x.selectedIndex=0);const O=$('#'+o);if(O)O.innerHTML='';if(f==='fpf'){S.finSim=null;S.finRes=null;S.finOut=''}else S.finCalc={}};
+/* 1. Calculadora de precios */
+FV.calc=()=>{const P=vis(S.prod).filter(p=>p.costo_total!=null),q=S.finCalc||{};
+ return `<div class="card"><h3>Calculadora de precios</h3><small>Compara el markup (recargo sobre el costo) con el margen (porcentaje de la venta). Con el mismo porcentaje, el margen da un precio más alto.</small><form id="fcf" onsubmit="return finCalc(event)">${SEL('prod','Producto (opcional, carga su costo)',[['','—'],...P.map(p=>[p.id,p.nombre+' · costo '+fmt(p.costo_total)])],'onchange="finCosto(this.value)"')}${NUM('costo','Costo del producto (Gs.)',`value="${q.costo??''}"`)}${NUM('pct','Porcentaje a aplicar (%)',`value="${q.pct??''}"`)}<button class="p">Calcular</button><button type="button" class="s lim" onclick="finLimpiar('fcf','fcout')">Limpiar</button></form><div id="fcout">${q.out||''}</div></div>`};
+window.finCosto=id=>{const p=S.prod.find(x=>x.id===id),f=$('#fcf');if(p&&f)f.costo.value=p.costo_total??''};
+window.finCalc=e=>{e.preventDefault();const f=e.target,sc=f.costo.value,sp=f.pct.value,c=N(sc),p=N(sp),er=FIN.valPrecio(sc,sp);
+ if(er){S.finCalc={costo:sc,pct:sp,out:`<div class="warn bad">${er}</div>`};draw();return false}
+ const r=FIN.precios(c,p),row=(l,a,b)=>`<tr><td>${l}</td><td>${a}</td><td>${b}</td></tr>`;
+ S.finCalc={costo:sc,pct:sp,out:`<div class="w"><table><tr><th></th><th>Markup (sobre el costo)</th><th>Margen (sobre la venta)</th></tr>${row('Costo del producto',fmt(c),fmt(c))}${row('Porcentaje aplicado',pc(p),pc(p))}${row('<b>Precio de venta recomendado</b>','<b>'+fmt(r.mk.precio)+'</b>','<b>'+fmt(r.mg.precio)+'</b>')}${row('Ganancia estimada por unidad',fmt(r.mk.gan),fmt(r.mg.gan))}${row('Margen real sobre la venta',pc(r.mk.margen),pc(r.mg.margen))}${row('Recargo real sobre el costo',pc(r.mk.recargo),pc(r.mg.recargo))}</table></div><div class="warn">Con el mismo ${pc(p)}, el método del margen cobra ${fmt(r.mg.precio-r.mk.precio)} más por unidad y deja ${fmt(r.mg.gan-r.mk.gan)} más de ganancia.</div><small>Para fijar precios conviene el margen: es el porcentaje que realmente te queda de cada venta.</small>`};draw();return false};
+/* 2. Proyección del negocio */
+FV.proy=()=>{const s=S.finSim||defaults();
+ return `<div class="card"><h3>Proyección del negocio</h3><small>Estima cómo podría crecer tu capital. Es una proyección, no dinero real. Los costos de las plantas ya están dentro del margen, así que no se cuentan dos veces.</small><form id="fpf" onsubmit="return finProy(event)">${F('nombre','Nombre del negocio','text',`value="${esc(s.nombre||'')}" maxlength="80"`)}${NUM('capital','Capital inicial (Gs.)',`value="${s.capital}"`)}${NUM('ventas','Ventas mensuales estimadas (Gs.)',`value="${s.ventas}"`)}${NUM('margen','Margen de beneficio (%)',`value="${s.margen}" max="99.99"`)}${NUM('gastos','Gastos mensuales (Gs.)',`value="${s.gastos}"`)}${SEL('anios','Período de simulación',[['1','1 año'],['2','2 años'],['3','3 años'],['5','5 años']]).replace(`<option value="${s.anios}">`,`<option value="${s.anios}" selected>`)}<button class="p">Proyectar</button><button type="button" class="s lim" onclick="finLimpiar('fpf','fpout')">Limpiar</button><button type="button" class="s" onclick="finReales()">Usar mis datos reales</button></form><div id="fpout">${S.finOut||''}</div></div>`};
+window.finReales=()=>{const d=defaults();if(!d.ventas){toast('Todavía no hay ventas de los últimos 30 días para usar.',true);return}S.finSim={...d,nombre:(S.finSim&&S.finSim.nombre)||d.nombre,capital:S.finSim?S.finSim.capital:'',anios:S.finSim?S.finSim.anios:1};S.finOut='';draw()};
+function proyHtml(s,r){const n=s.nombre||'Mi negocio',k=(l,v,c='')=>`<div class="k"><small>${l}</small><b class="${c}">${v}</b></div>`,a=N(s.anios);
+ return `<h4>${esc(n)} · proyección a ${a} año${a>1?'s':''}</h4>${r.neta<0?`<div class="warn bad"><b>Pérdida proyectada:</b> con estos datos el negocio perdería ${fmt(-r.um)} por mes (${fmt(-r.neta)} en total) y el capital bajaría a ${fmt(r.capFinal)}.</div>`:''}<div class="grid">${k('Ingresos acumulados',fmt(r.ing))}${k('Costos estimados',fmt(r.costos))}${k('Gastos acumulados',fmt(r.gastos))}${k('Ganancia neta proyectada',fmt(r.neta),cls(r.neta))}${k('Capital final proyectado',fmt(r.capFinal),cls(r.neta))}</div>${chart(N(s.capital),r.rows)}<div class="w"><table><tr><th>Año</th><th>Ingresos</th><th>Costos</th><th>Gastos</th><th>Utilidad</th><th>Capital al cierre</th></tr>${r.rows.map(x=>`<tr><td>${x.a}</td><td>${fmt(x.ing)}</td><td>${fmt(x.costos)}</td><td>${fmt(x.gastos)}</td><td class="${cls(x.util)}">${fmt(x.util)}</td><td class="${cls(x.cap)}">${fmt(x.cap)}</td></tr>`).join('')}</table></div><small>Utilidad neta mensual = ventas × margen − gastos = ${fmt(N(s.ventas))} × ${pc(N(s.margen))} − ${fmt(N(s.gastos))} = ${fmt(r.um)}. Capital final = capital inicial + utilidad mensual × ${r.meses} meses.</small><br><button class="p" onclick="finGuardar()">Guardar escenario</button>`}
+window.finProy=e=>{e.preventDefault();const f=e.target,s={nombre:f.nombre.value.trim(),capital:f.capital.value,ventas:f.ventas.value,margen:f.margen.value,gastos:f.gastos.value,anios:f.anios.value},er=FIN.valSim(s);
+ S.finSim=s;
+ if(er){S.finRes=null;S.finOut=`<div class="warn bad">${er}</div>`;draw();return false}
+ S.finRes=FIN.proy(N(s.capital),N(s.ventas),N(s.margen),N(s.gastos),N(s.anios));S.finOut=proyHtml(s,S.finRes);draw();return false};
+window.finGuardar=async()=>{const s=S.finSim,r=S.finRes;if(!s||!r)return;
+ const par={nombre:s.nombre||'Mi negocio',capital:N(s.capital),ventas:N(s.ventas),margen:N(s.margen),gastos:N(s.gastos),anios:N(s.anios)};
+ if(S.esc.some(x=>Object.keys(par).every(k=>String(x.parametros?.[k])===String(par[k])))){toast('Este escenario ya está guardado.');return}
+ try{await ok(SB.from('escenarios').insert({nombre:par.nombre,parametros:par,resultado:{ingresos:r.ing,costos:r.costos,gastos:r.gastos,neta:r.neta,capitalFinal:r.capFinal}}));toast('Escenario guardado ✔');await load();draw()}catch(x){toast(x.message||String(x),true)}};
+/* 3. Gastos del mes */
+FV.gas=()=>{const mes=S.finMes||hoy().slice(0,7),L=vis(S.gastos).filter(g=>!g.anulado&&String(g.fecha).slice(0,7)===mes),tot=sum(L,'monto'),by={};
+ L.forEach(g=>by[g.categoria]=(by[g.categoria]||0)+N(g.monto));
+ const arr=Object.entries(by).sort((a,b)=>b[1]-a[1]),mx=Math.max(1,...arr.map(x=>x[1])),fj=sum(L.filter(g=>g.naturaleza==='fijo'),'monto'),pend=sum(L.filter(g=>g.estado_pago==='pendiente'),'monto'),k=(l,v)=>`<div class="k"><small>${l}</small><b>${v}</b></div>`;
+ return `<div class="card"><h3>Control de gastos</h3><label>Mes<input type="month" value="${mes}" onchange="S.finMes=this.value||undefined;draw()"></label><div class="grid">${k('Total del mes',fmt(tot))}${k('Gastos fijos',fmt(fj))}${k('Gastos variables',fmt(tot-fj))}${k('Pendientes de pago',fmt(pend))}</div>${arr.map(([c,v])=>`<div><small>${esc(c)} · ${fmt(v)} · ${pc(v/tot*100)}</small><div class="bar" style="width:${v/mx*100}%"></div></div>`).join('')||'<small>No hay gastos en este mes.</small>'}<button class="p" onclick="go('gastos')">Registrar o editar gastos</button><br><small>Para corregir un gasto usa "Editar un gasto". Para eliminarlo usa "Anular": pide confirmación y motivo, el gasto deja de contarse y queda en el historial (no se borra, para cuidar tus informes).</small></div>`};
+const _an6=anular;
+anular=async function(t,id){if(!confirm('¿Seguro que quieres anular este registro? Dejará de contarse en los totales, pero quedará en el historial.'))return;return _an6(t,id)};
+/* 4. Escenarios guardados */
+FV.esc=()=>{const E=S.esc||[];
+ return `<div class="card w"><h3>Escenarios guardados</h3>${E.length?`<table><tr><th>Fecha</th><th>Negocio</th><th>Período</th><th>Utilidad neta</th><th>Capital final</th><th></th></tr>${E.map(x=>`<tr><td>${fh(x.creado_en)}</td><td>${esc(x.nombre)}</td><td>${esc(x.parametros?.anios)} año(s)</td><td class="${cls(x.resultado?.neta)}">${fmt(x.resultado?.neta)}</td><td>${fmt(x.resultado?.capitalFinal)}</td><td><button class="s" onclick="finCargar('${x.id}')">Cargar</button></td></tr>`).join('')}</table>`:'<small>Todavía no guardaste escenarios. Hazlo desde "Proyección del negocio".</small>'}<br><small>Los escenarios guardados no se borran: sirven como historial de tus proyecciones.</small></div>`};
+window.finCargar=id=>{const x=(S.esc||[]).find(e=>e.id===id);if(!x)return;const p=x.parametros||{};
+ S.finSim={nombre:p.nombre||'',capital:p.capital,ventas:p.ventas,margen:p.margen,gastos:p.gastos,anios:p.anios};
+ if(FIN.valSim(S.finSim)){toast('Ese escenario tiene datos incompletos.',true);return}
+ S.finRes=FIN.proy(N(p.capital),N(p.ventas),N(p.margen),N(p.gastos),N(p.anios));S.finOut=proyHtml(S.finSim,S.finRes);S.finSec='proy';draw()};
+const _l6=load;
+load=async()=>{await _l6();const r=await SB.from('escenarios').select('*').order('creado_en',{ascending:false}).limit(50);S.esc=r.data||[]};
+TABS.splice(3,0,['fin','Financiero']);
+/* Pruebas del módulo (datos de ejemplo, no tocan la base) */
+const _pr6=pruebas;
+pruebas=function(){const T=[],add=(n,d,f,e,o,fm,tol=0.01)=>T.push({n,d,f,e:fm(e),o:fm(o),ok:Math.abs(o-e)<=tol}),g=v=>fmt(v),p2=v=>v.toFixed(2)+' %';
+ add('Markup','costo 5.000 · 50 %','costo × (1 + %)',7500,FIN.precios(5000,50).mk.precio,g);
+ add('Margen','costo 5.000 · 30 %','costo ÷ (1 − %)',7143,FIN.precios(5000,30).mg.precio,g);
+ add('Margen real del markup','5.000 → 7.500','(precio − costo) ÷ precio',33.33,FIN.precios(5000,50).mk.margen,p2);
+ const a=FIN.proy(5e6,1e7,30,2e6,2),b=FIN.proy(0,1e6,20,3e5,1);
+ add('Utilidad mensual','ventas 10.000.000 · margen 30 % · gastos 2.000.000','ventas × margen − gastos',1e6,a.um,g);
+ add('Ganancia acumulada 2 años','utilidad 1.000.000 × 24 meses','utilidad × meses',24e6,a.neta,g);
+ add('Capital final proyectado','5.000.000 + 24.000.000','capital + ganancia acumulada',29e6,a.capFinal,g);
+ add('Pérdida mensual','ventas 1.000.000 · margen 20 % · gastos 300.000','ventas × margen − gastos',-1e5,b.um,g);
+ add('Margen 100 % rechazado','margen 100','validación',1,FIN.valPrecio('5000','100')?1:0,String);
+ add('Valor negativo rechazado','costo −5.000','validación',1,FIN.valPrecio('-5000','30')?1:0,String);
+ const n=T.filter(t=>t.ok).length;
+ return _pr6()+`<h4>Módulo financiero</h4><div class="${n===T.length?'pos':'neg'}"><b>${n} de ${T.length} pruebas aprobadas</b></div><table><tr><th>Prueba</th><th>Datos</th><th>Fórmula</th><th>Esperado</th><th>Obtenido</th><th>Estado</th></tr>${T.map(t=>`<tr><td>${t.n}</td><td>${t.d}</td><td>${t.f}</td><td>${t.e}</td><td>${t.o}</td><td class="${t.ok?'pos':'neg'}"><b>${t.ok?'APROBADO':'ERROR'}</b></td></tr>`).join('')}</table>`};})();
  start();
 </script></body></html>
