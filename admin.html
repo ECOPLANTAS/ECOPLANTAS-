@@ -554,5 +554,99 @@ pruebas=function(){const T=[],add=(n,d,f,e,o,fm,tol=0.01)=>T.push({n,d,f,e:fm(e)
  add('Valor negativo rechazado','costo −5.000','validación',1,FIN.valPrecio('-5000','30')?1:0,String);
  const n=T.filter(t=>t.ok).length;
  return _pr6()+`<h4>Módulo financiero</h4><div class="${n===T.length?'pos':'neg'}"><b>${n} de ${T.length} pruebas aprobadas</b></div><table><tr><th>Prueba</th><th>Datos</th><th>Fórmula</th><th>Esperado</th><th>Obtenido</th><th>Estado</th></tr>${T.map(t=>`<tr><td>${t.n}</td><td>${t.d}</td><td>${t.f}</td><td>${t.e}</td><td>${t.o}</td><td class="${t.ok?'pos':'neg'}"><b>${t.ok?'APROBADO':'ERROR'}</b></td></tr>`).join('')}</table>`};})();
+ /* ECOPLANTAS · Recomendación inteligente de ganancias */
+(function(){
+if(window.__eco8)return;window.__eco8=1;
+const MIN=10,R0=Math.round,REC={};
+REC.precio=(K,m,t)=>{const d=1-(m+t)/100;return d>0?K/d:null};
+REC.gan=(P,K,t)=>P*(1-t/100)-K;
+REC.margen=(P,K,t)=>P>0?(1-t/100-K/P)*100:null;
+REC.reparto=(G,L,metodo)=>{const o={},su=L.reduce((s,x)=>s+x.u,0),sr=L.reduce((s,x)=>s+x.u*x.pr,0);
+ L.forEach(x=>{o[x.id]=G<=0?0:(metodo==='ingresos'?(sr>0?G*x.pr/sr:0):(su>0?G/su:0))});return o};
+REC.meta=(meta,A,t)=>meta>0&&A>0?meta*(1-t/100)/(A+meta)*100:null;
+REC.sugerir=(x,gen,mk,t)=>{let m=x.mo>0?x.mo:gen;const why=['Punto de partida: margen objetivo de '+pc(m)+'.'];
+ if(x.stock>0&&x.dias!=null&&x.dias>60){m-=5;why.push('Rota lento (más de 60 días sin venta): conviene un precio más competitivo (−5 puntos).')}
+ else if(x.dias!=null&&x.dias<=7&&x.u>0&&x.u>=x.medU){m+=5;why.push('Rota rápido: puedes ganar un poco más (+5 puntos).')}
+ m=Math.min(60,Math.max(MIN,m));
+ if(mk>0){const P=REC.precio(x.K,m,t);
+  if(P!=null&&P>mk*1.1){const mm=REC.margen(mk,x.K,t);
+   if(mm>=MIN){m=Math.floor(mm*10)/10;why.push('El precio de mercado ('+fmt(mk)+') es menor que el de tu margen: se ajusta a '+pc(m)+' para ser competitivo.')}
+   else{m=MIN;why.push('El mercado ('+fmt(mk)+') deja menos de '+MIN+' % de margen: se mantiene el mínimo y se avisa.')}}}
+ return {m:Math.round(m*10)/10,why}};
+window.REC=REC;
+S.rec={G:null,t:0,units:{}};S.recCache={};S.merc={};
+const med=a=>{const s=[...a].sort((x,y)=>x-y);return s.length?s[Math.floor(s.length/2)]:0};
+const compet=(P,mk)=>{if(!(mk>0))return '—';const r=P/mk;return r<=1?'<span class="pos">Competitivo</span>':r<=1.1?'Cercano al mercado':'<span class="neg">Por encima del mercado</span>'};
+function auto(){const d30=new Date(Date.now()-29*864e5).toLocaleDateString('en-CA',{timeZone:TZ}),vv=vis(S.ventas).filter(v=>!v.anulada&&v.fecha>=d30),u={};
+ vv.forEach(v=>u[v.producto_id]=(u[v.producto_id]||0)+N(v.cantidad));
+ return {G:Math.round(sum(vis(S.gastos).filter(g=>!g.anulado&&g.clasificacion!=='directo'&&g.fecha>=d30),'monto')),u}}
+V.rec=()=>{const P=vis(S.prod).filter(p=>p.costo_total!=null&&p.activo!==false),a=auto(),st=S.rec,G=st.G==null?a.G:st.G,t=st.t,
+ metodo=S.cfg.metodo_prorrateo_costos_compartidos==='ingresos'?'ingresos':'unidades',gen=N(S.cfg.margen_objetivo_general||30),meta=N(S.cfg.meta_utilidad_mensual),
+ U=p=>st.units[p.id]!=null?st.units[p.id]:(a.u[p.id]||0),Lr=P.map(p=>({id:p.id,u:U(p),pr:N(p.precio_venta)||N(p.costo_total)*1.3})),gu=REC.reparto(G,Lr,metodo),
+ su=sum(Lr,'u'),invm=Object.fromEntries(S.inv.map(i=>[i.producto_id,i])),medU=med(Lr.filter(x=>x.u>0).map(x=>x.u));
+ const rows=P.map(p=>{const c=N(p.costo_total),u=U(p),g=gu[p.id]||0,K=c+g,mk=S.merc[p.id]||0,i=invm[p.id]||{},
+  s=REC.sugerir({K,mo:N(p.margen_objetivo),dias:i.dias_sin_venta,stock:N(i.stock),u,medU},gen,mk,t);return {p,c,u,g,K,mk,s,pe:REC.precio(K,0,t)}});
+ const A=rows.reduce((s,r)=>s+r.u*r.K,0),mg=REC.meta(meta,A,t);
+ S.recCache={};rows.forEach(r=>S.recCache[r.p.id]={K:r.K,u:r.u,mk:r.mk,pe:r.pe,pa:N(r.p.precio_venta),mo:r.p.margen_objetivo});
+ const k=(l,v,c='')=>`<div class="k"><small>${l}</small><b class="${c}">${v}</b></div>`;
+ const card=r=>{const {p}=r,opts=[['Equilibrio (no ganas ni pierdes)',0],['Mínimo',MIN],['Conservador',20],['Recomendado',r.s.m],['Alto',40],['Premium',50]];
+  if(mg!=null&&mg>=0&&mg+t<100)opts.push(['Para tu meta mensual',Math.round(mg*10)/10]);
+  const seen=new Set(),O=opts.filter(o=>o[1]+t<100&&!seen.has(o[1])&&seen.add(o[1])).sort((x,y)=>x[1]-y[1]);
+  const line=(n,m)=>{const P1=R0(REC.precio(r.K,m,t)),g1=REC.gan(P1,r.K,t);return `<tr${n==='Recomendado'?' style="background:#e8f3ea;font-weight:600"':''}><td>${n}</td><td>${pc(m)}</td><td>${fmt(P1)}</td><td class="${cls(g1)}">${fmt(g1)}</td><td class="${cls(g1)}">${fmt(g1*r.u)}</td><td>${compet(P1,r.mk)}</td></tr>`};
+  const pa=N(p.precio_venta),cub=pa>=r.pe-0.5,Pr=R0(REC.precio(r.K,r.s.m,t));
+  return `<div class="card"><h3>${esc(p.nombre)} <small>${esc(p.codigo)}</small></h3>
+ <div class="grid fk">${k('Costo directo',fmt(r.c))}${k('Gasto proporcional',fmt(r.g))}${k('Costo total por unidad',fmt(r.K))}${k('Precio actual',pa?fmt(pa):'—')}</div>
+ ${pa&&!cub?`<div class="warn bad"><b>Tu precio actual (${fmt(pa)}) no cubre costos y gastos.</b> Necesitas al menos ${fmt(R0(r.pe))} para no perder.</div>`:''}
+ ${r.u<=0?'<div class="warn">Sin ventas estimadas: el gasto proporcional es solo un promedio. Escribe cuántas unidades esperas vender al mes.</div>':''}
+ <label>Ventas estimadas por mes (unidades)<input type="number" min="0" step="1" value="${r.u}" onchange="recU('${p.id}',this.value)"></label>
+ <div style="display:flex;gap:6px;align-items:end"><label style="flex:1">Precio de mercado de referencia (Gs., opcional)<input id="rm_${p.id}" type="number" min="0" step="any" value="${r.mk||''}"></label><button class="s" onclick="recMercado('${p.id}')">Guardar</button></div>
+ <div class="w"><table><tr><th>Alternativa</th><th>Margen neto</th><th>Precio sugerido</th><th>Ganancia por unidad</th><th>Ganancia total (${r.u} u.)</th><th>Mercado</th></tr>${O.map(o=>line(o[0],o[1])).join('')}</table></div>
+ <small>${r.s.why.map(esc).join(' ')}</small>
+ <label>Tu porcentaje de ganancia (%)<input type="number" step="any" value="${r.s.m}" oninput="recUser('${p.id}',this.value)"></label>
+ <div id="ru_${p.id}"></div><small>Precio recomendado: ${fmt(Pr)}.</small></div>`};
+ return `<div class="card"><h3>Recomendación inteligente de ganancias</h3><small>Calcula el costo real de cada planta sumando su parte de los gastos del negocio, y sugiere qué margen de ganancia conviene. Costo total = costo directo + gasto proporcional. Precio = costo total ÷ (1 − margen − comisiones).</small>
+ <div class="grid fk" style="margin-top:8px">${k('Gastos del mes a repartir',fmt(G))}${k('Unidades estimadas por mes',su)}${k('Gasto promedio por unidad',su>0?fmt(G/su):'—')}${k('Margen necesario para tu meta',meta>0?(mg==null?'—':pc(mg)):'sin meta en Config')}</div>
+ <label>Gastos mensuales a repartir (Gs.) — por defecto, los de los últimos 30 días que no son directos<input type="number" min="0" step="any" value="${G}" onchange="recSet('G',this.value)"></label>
+ <label>Comisiones e impuestos sobre la venta (%)<input type="number" min="0" max="50" step="any" value="${t}" onchange="recSet('t',this.value)"></label>
+ <small>Reparto según: ${metodo==='ingresos'?'ingresos de cada producto':'unidades vendidas'} (se cambia en Config). Los gastos de tipo "directo" no se reparten, porque se asumen ya incluidos en el costo del producto.</small><br><button class="s" onclick="recReset()">Restablecer valores automáticos</button></div>
+ ${rows.length?rows.map(card).join(''):'<div class="card"><small>Primero carga productos con su costo en la pestaña Productos.</small></div>'}`};
+window.recSet=(k,v)=>{const n=parseFloat(v);if(!(n>=0)||(k==='t'&&n>=100)){toast('Escribe un número válido (0 o más).',true);return}S.rec[k]=n;draw()};
+window.recU=(id,v)=>{const n=parseInt(v,10);if(!(n>=0)){toast('Las unidades deben ser 0 o más.',true);return}S.rec.units[id]=n;draw()};
+window.recReset=()=>{S.rec={G:null,t:0,units:{}};draw()};
+window.recUser=(id,v)=>{const o=document.getElementById('ru_'+id),c=S.recCache[id],t=S.rec.t,m=parseFloat(v);if(!o||!c)return;
+ if(isNaN(m)||m<=-100||m+t>=100){o.innerHTML='<div class="warn bad">Escribe un porcentaje válido: menor a '+(100-t)+' %.</div>';return}
+ const P=R0(REC.precio(c.K,m,t)),g=REC.gan(P,c.K,t);
+ o.innerHTML=`<div class="grid"><div class="k"><small>Precio de venta</small><b>${fmt(P)}</b></div><div class="k"><small>Ganancia por unidad</small><b class="${cls(g)}">${fmt(g)}</b></div><div class="k"><small>Ganancia total proyectada</small><b class="${cls(g)}">${fmt(g*c.u)}</b></div></div>
+ ${P<c.pe-0.5?'<div class="warn bad">Con este precio NO cubres tus costos y gastos: pierdes '+fmt(-g)+' por unidad.</div>':''}
+ ${c.mk>0&&P>c.mk*1.1?'<div class="warn">Este precio está '+pc((P/c.mk-1)*100)+' por encima del mercado ('+fmt(c.mk)+'): puede costarte ventas.</div>':''}
+ ${c.mk>0&&c.mk<c.pe?'<div class="warn bad">El precio de mercado ('+fmt(c.mk)+') es menor que tu costo total: igualarlo te daría pérdida.</div>':''}
+ <button class="p" onclick="recAplicar('${id}',${P})">Usar este precio</button>`};
+window.recAplicar=async(id,P)=>{const p=S.prod.find(x=>x.id===id),c=S.recCache[id];if(!p||!c||!(P>0))return;
+ if(!confirm('¿Guardar '+fmt(P)+' como nuevo precio de venta de "'+p.nombre+'"? El precio anterior queda en el historial.'))return;
+ try{await ok(SB.from('precios_producto').insert({producto_id:id,precio_venta:P,precio_minimo:R0(c.pe),margen_objetivo:p.margen_objetivo==null?null:N(p.margen_objetivo),nota:'Recomendación inteligente'}));toast('Precio guardado ✔');await load();draw()}catch(x){toast(x.message||String(x),true)}};
+window.recMercado=async id=>{const el=document.getElementById('rm_'+id),v=parseFloat(el&&el.value);
+ if(!(v>0)){toast('Escribe un precio de mercado mayor que 0.',true);return}
+ if(S.merc[id]===v){toast('Ese precio de mercado ya está registrado.');return}
+ try{await ok(SB.from('precios_mercado').insert({producto_id:id,precio:v,fuente:'manual'}));toast('Precio de mercado guardado ✔');await load();draw()}catch(x){toast(x.message||String(x),true)}};
+const _l8=load;
+load=async()=>{await _l8();const r=await SB.from('precios_mercado').select('producto_id,precio,creado_en').order('creado_en',{ascending:false}).limit(500);
+ S.merc={};(r.data||[]).forEach(x=>{if(S.merc[x.producto_id]==null)S.merc[x.producto_id]=N(x.precio)})};
+const ip=TABS.findIndex(t=>t[0]==='precios');TABS.splice(ip>=0?ip+1:3,0,['rec','Recomendación']);
+const _pr8=pruebas;
+pruebas=function(){const T=[],add=(n,d,f,e,o,fm,tol=0.01)=>T.push({n,d,f,e:fm(e),o:fm(o),ok:Math.abs(o-e)<=tol}),g=v=>fmt(v),p2=v=>v.toFixed(2)+' %';
+ const gu=REC.reparto(300000,[{id:'a',u:100,pr:10000},{id:'b',u:200,pr:20000}],'unidades'),gi=REC.reparto(300000,[{id:'a',u:100,pr:10000},{id:'b',u:100,pr:20000}],'ingresos');
+ add('Gasto por unidad (reparto por unidades)','300.000 entre 300 unidades','gastos ÷ unidades',1000,gu.a,g);
+ add('Costo total por unidad','directo 7.000 + gasto 1.000','directo + gasto proporcional',8000,7000+gu.a,g);
+ add('Precio con margen 30 %','costo total 8.000','costo ÷ (1 − margen)',11429,R0(REC.precio(8000,30,0)),g);
+ add('Ganancia por unidad','precio 11.429 − costo 8.000','precio − costo total',3429,REC.gan(11429,8000,0),g);
+ add('Ganancia total proyectada','3.429 × 300 unidades','ganancia × unidades',1028700,3429*300,g);
+ add('Precio de equilibrio','costo total 8.000','margen 0 %',8000,REC.precio(8000,0,0),g);
+ add('Precio con comisión del 5 %','costo 10.000 · margen 30 % · comisión 5 %','costo ÷ (1 − margen − comisión)',15385,R0(REC.precio(10000,30,5)),g);
+ add('Reparto por ingresos suma el total','100×1.000 + 100×2.000','suma de gastos repartidos',300000,100*gi.a+100*gi.b,g);
+ add('Margen necesario para la meta','costos 1.000.000 · meta 250.000','meta ÷ (costos + meta)',20,REC.meta(250000,1e6,0),p2);
+ add('Margen a precio de mercado','costo 10.000 · mercado 13.000','1 − costo ÷ precio',23.08,REC.margen(13000,10000,0),p2);
+ add('Margen imposible rechazado','margen 100 %','validación',1,REC.precio(8000,100,0)==null?1:0,String);
+ const n=T.filter(t=>t.ok).length;
+ return _pr8()+`<h4>Recomendación de ganancias</h4><div class="${n===T.length?'pos':'neg'}"><b>${n} de ${T.length} pruebas aprobadas</b></div><table><tr><th>Prueba</th><th>Datos</th><th>Fórmula</th><th>Esperado</th><th>Obtenido</th><th>Estado</th></tr>${T.map(t=>`<tr><td>${t.n}</td><td>${t.d}</td><td>${t.f}</td><td>${t.e}</td><td>${t.o}</td><td class="${t.ok?'pos':'neg'}"><b>${t.ok?'APROBADO':'ERROR'}</b></td></tr>`).join('')}</table>`};})();
  start();
 </script></body></html>
