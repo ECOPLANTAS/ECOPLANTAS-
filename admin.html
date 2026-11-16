@@ -121,7 +121,14 @@ H.gasto=async d=>{await ok(SB.from('gastos').insert({fecha:d.fecha||hoy(),concep
 H.cfg=async d=>{await ok(SB.from('config').upsert([{clave:'margen_objetivo_general',valor:N(d.margen),actualizado_en:new Date().toISOString()},{clave:'meta_utilidad_mensual',valor:N(d.meta),actualizado_en:new Date().toISOString()}],{onConflict:'clave'}))};
 async function anular(t,id){const m=prompt('Motivo de la anulación');if(!m)return;
  try{await ok(SB.from(t).update(t==='ventas'?{anulada:true,anulada_motivo:m}:{anulado:true,anulado_motivo:m}).eq('id',id));await load();draw();toast('Anulado ✔')}catch(x){toast(x.message,true)}}
-async function pagar(id){try{await ok(SB.from('gastos').update({estado_pago:'pagado',fecha_pago:hoy()}).eq('id',id));await load();draw()}catch(x){toast(x.message,true)}}
+async function anularVenta(id){const v=S.ventas.find(x=>x.id===id);if(!v||v.anulada||S.anulando)return;
+ const m=(prompt('Motivo de la anulación de la venta (obligatorio).\nSe devolverán '+v.cantidad+' unidad(es) al stock.')||'').trim();
+ if(m.length<3){toast('Escribe el motivo de la anulación (mínimo 3 letras).',true);return}
+ if(!confirm('¿Anular esta venta de '+v.cantidad+' unidad(es)? No se puede deshacer.'))return;
+ S.anulando=1;
+ try{await ok(SB.from('ventas').update({anulada:true,anulada_motivo:m}).eq('id',id).eq('anulada',false));await load();draw();toast('Venta anulada ✔ (stock devuelto)')}
+ catch(x){toast(x.message||String(x),true)}finally{S.anulando=0}}
+async function anular(t,id){if(t==='ventas')return anularVenta(id);const m=prompt('Motivo de la anulación');if(!m)return;
 
 V.panel=()=>{const ym=hoy().slice(0,7),mk=ym+'-01',ms=vis(S.mes).sort((a,b)=>a.mes<b.mes?1:-1),cur=ms.find(x=>x.mes===mk)||{},prev=ms.find(x=>x.mes<mk);
  const vv=vis(S.ventas).filter(x=>!x.anulada),w=new Date(Date.now()-6*864e5).toLocaleDateString('en-CA',{timeZone:TZ});
