@@ -256,9 +256,6 @@ V.productos=()=>{const P=vis(S.prod),I=Object.fromEntries(S.inv.map(i=>[i.produc
  return `${S.prueba?'<div class="warn">Modo PRUEBA: lo que cargues aquí se puede borrar sin afectar tus datos reales.</div>':''}
 <div class="card"><h3 id="ptit">Producto nuevo</h3><small>Escribe los números sin puntos (ejemplo: 25000). El margen objetivo es un porcentaje (ejemplo: 40). Si editas un producto, deja vacíos los costos que no cambian.</small>
 <form id="pf" onsubmit="return sub(event,'prod')"><input type="hidden" name="pid">${F('codigo','Código único')}${F('nombre','Nombre comercial')}${F('especie','Especie')}${SEL('categoria','Categoría',['ornamental','frutal','medicinal','aromatica','otra'])}${F('proveedor','Proveedor')}${NUM('stock_minimo','Stock mínimo (solo un aviso para reponer; NO es la cantidad que tienes)','step="1"')}<label class="ck"><input type="checkbox" name="activo" checked> Producto activo (a la venta)</label>
-window.ctot=function(){const f=document.querySelector('#pf'),e=document.getElementById('ctot');if(!f||!e)return;
- const vac=f.costo_adquisicion.value===''&&f.otros_directos.value==='';const p=f.pid.value?S.prod.find(x=>x.id===f.pid.value):null;
- e.value=vac&&p?'Sin cambios: '+fmt(p.costo_total)+' (costo actual)':fmt(N(f.costo_adquisicion.value)+N(f.otros_directos.value))};
 <h4>Precio</h4>${NUM('precio_venta','Precio de venta actual')}${NUM('precio_minimo','Precio mínimo aceptable')}${NUM('margen_objetivo','Margen objetivo (%)','max="99.99"')}
 <h4>Stock inicial (opcional)</h4>${NUM('stock_inicial','Cantidad de plantas que tienes hoy','step="1"')}<small>Se guarda como una ENTRADA de inventario usando el costo unitario completo de arriba. Para sumar más plantas después, usa la pestaña Inventario.</small>
 <label class="ck"><input type="checkbox" name="es_prueba" ${S.prueba?'checked':''}> Producto de prueba</label>
