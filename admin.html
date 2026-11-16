@@ -255,7 +255,8 @@ login=function(m){const h=document.getElementById('hdr');if(h)h.innerHTML='';_lg
 V.productos=()=>{const P=vis(S.prod),I=Object.fromEntries(S.inv.map(i=>[i.producto_id,i])); 
  return `${S.prueba?'<div class="warn">Modo PRUEBA: lo que cargues aquí se puede borrar sin afectar tus datos reales.</div>':''}
 <div class="card"><h3 id="ptit">Producto nuevo</h3><small>Escribe los números sin puntos (ejemplo: 25000). El margen objetivo es un porcentaje (ejemplo: 40). Si editas un producto, deja vacíos los costos que no cambian.</small>
-<form id="pf" onsubmit="return sub(event,'prod')"><input type="hidden" name="pid">${F('codigo','Código único')}${F('nombre','Nombre comercial')}${F('especie','Especie')}${SEL('categoria','Categoría',['ornamental','frutal','medicinal','aromatica','otra'])}${F('proveedor','Proveedor')}${NUM('stock_minimo','Stock mínimo (solo un aviso para reponer; NO es la cantidad que tienes)','step="1"')}<label class="ck"><input type="checkbox" name="activo" checked> Producto activo (a la venta)</label>
+<form id="pf" onsubmit="return sub(event,'prod')" oninput="ctotP()"><input type="hidden" name="pid">${F('codigo','Código único')}${F('nombre','Nombre comercial')}${F('especie','Especie')}${SEL('categoria','Categoría',['ornamental','frutal','medicinal','aromatica','otra'])}${F('proveedor','Proveedor')}${NUM('stock_minimo','Stock mínimo (solo un aviso para reponer; NO es la cantidad que tienes)','step="1"')}<label class="ck"><input type="checkbox" name="activo" checked> Producto activo (a la venta)</label>
+<h4>Costo unitario completo</h4><small>Se calcula solo: costo de compra o producción + otros costos directos. La maceta, el flete y la mano de obra se registran en Gastos.</small>${NUM('costo_adquisicion','Costo de compra o producción')}${NUM('otros_directos','Otros costos directos (sustrato, fertilizante, etiquetas)')}${CK('es_estimado','Estos costos son una estimación')}<label>Total (solo lectura)<input id="ctot" type="text" readonly value="0 Gs."></label>
 <h4>Precio</h4>${NUM('precio_venta','Precio de venta actual')}${NUM('precio_minimo','Precio mínimo aceptable')}${NUM('margen_objetivo','Margen objetivo (%)','max="99.99"')}
 <h4>Stock inicial (opcional)</h4>${NUM('stock_inicial','Cantidad de plantas que tienes hoy','step="1"')}<small>Se guarda como una ENTRADA de inventario usando el costo unitario completo de arriba. Para sumar más plantas después, usa la pestaña Inventario.</small>
 <label class="ck"><input type="checkbox" name="es_prueba" ${S.prueba?'checked':''}> Producto de prueba</label>
@@ -265,7 +266,7 @@ ${S.prueba?'<div class="card"><button class="p" onclick="borrarPruebas()">Borrar
 S.ceP=null;S.ceData=null;
 window.bloqueCosto=function(){const P=vis(S.prod),id=S.ceP,p=P.find(x=>x.id===id),d=S.ceData;
  let h=`<div class="card"><h3>Costo y otros gastos</h3><small>Así se forma el costo de cada producto. La maceta, el flete y la mano de obra se registran en Gastos con clasificación "indirecto".</small><label>Producto<select onchange="ceSel(this.value)"><option value="">— elegir —</option>${P.map(x=>`<option value="${esc(x.id)}" ${x.id===id?'selected':''}>${esc(x.codigo)} · ${esc(x.nombre)}</option>`).join('')}</select></label>`;
- if(d._err)return h+'<div class="warn bad">No se pudo leer el costo: '+esc(d._err)+'</div></div>';
+ if(d&&d._err)return h+'<div class="warn bad">No se pudo leer el costo: '+esc(d._err)+'</div></div>';
  if(!p)return h+'</div>';
  if(!d)return h+'<small>Cargando costo…</small></div>';
  if(!Object.keys(d).length)return h+'<div class="warn">Este producto todavía no tiene costo registrado.</div></div>';
@@ -273,19 +274,24 @@ window.bloqueCosto=function(){const P=vis(S.prod),id=S.ceP,p=P.find(x=>x.id===id
 window.ceSel=async function(id){S.ceP=id||null;S.ceData=null;draw();if(!id)return;
  let r=null;try{const q=await SB.from('costos_producto').select('*').eq('producto_id',id).order('vigente_desde',{ascending:false}).order('creado_en',{ascending:false}).limit(1);if(q.error)throw q.error;r=q.data}catch(x){S.ceData={_err:x.message||String(x)};draw();return}
  if(S.ceP===id){S.ceData=(r&&r[0])||{};draw()}};
-window.nuevoP=function(){const f=document.querySelector('#pf');if(!f)return;f.reset();f.pid.value='';document.querySelector('#ptit').textContent='Producto nuevo';ctot()};
+window.ctotP=function(){const f=document.querySelector('#pf'),e=document.getElementById('ctot');if(!f||!e)return;
+ const vacio=(f.costo_adquisicion.value==='')&&(f.otros_directos.value==='');
+ const p=f.pid.value?S.prod.find(x=>x.id===f.pid.value):null;
+ e.value=vacio&&p?'Sin cambios: '+fmt(p.costo_total)+' (costo actual)':fmt(N(f.costo_adquisicion.value)+N(f.otros_directos.value))};
+window.nuevoP=function(){const f=document.querySelector('#pf');if(!f)return;f.reset();f.pid.value='';document.querySelector('#ptit').textContent='Producto nuevo';ctotP()};
 window.editarP=function(id){const f=document.querySelector('#pf'),p=S.prod.find(x=>x.id===id);if(!f||!p)return;
  f.reset();f.pid.value=id;f.codigo.value=p.codigo||'';f.nombre.value=p.nombre||'';f.especie.value=p.especie||'';f.categoria.value=p.categoria||'ornamental';
  f.proveedor.value=p.proveedor||'';f.stock_minimo.value=p.stock_minimo??0;f.activo.checked=p.activo!==false;
  f.precio_venta.value=p.precio_venta??'';f.precio_minimo.value=p.precio_minimo??'';f.margen_objetivo.value=p.margen_objetivo??'';
- document.querySelector('#ptit').textContent='Editando: '+p.nombre+' (costo actual '+fmt(p.costo_total)+')';ctot();f.scrollIntoView({behavior:'smooth'})};
+ document.querySelector('#ptit').textContent='Editando: '+p.nombre+' (costo actual '+fmt(p.costo_total)+')';ctotP();f.scrollIntoView({behavior:'smooth'})};
 
 H.prod=async d=>{
  const codigo=(d.codigo||'').trim(),nombre=(d.nombre||'').trim();
  if(!codigo||!nombre)throw new Error('El código y el nombre son obligatorios');
  const cur=d.pid?S.prod.find(x=>x.id===d.pid):null,mo=d.margen_objetivo===''?null:N(d.margen_objetivo);
  if(mo!==null&&(mo<0||mo>=100))throw new Error('El margen objetivo es un porcentaje entre 0 y 99 (ejemplo: 40)');
- const conCosto=d.costo_adquisicion!=='',conPrecio=d.precio_venta!=='';
+ const conCosto=(d.costo_adquisicion||'')!==''||(d.otros_directos||'')!=='',conPrecio=d.precio_venta!=='';
+ if(conCosto&&(d.costo_adquisicion||'')==='')throw new Error('Si cambias un costo, escribe también el costo de compra o producción');
  const costo=conCosto?N(d.costo_adquisicion)+N(d.otros_directos):(cur?cur.costo_total:null);
  const precio=conPrecio?N(d.precio_venta):(cur?cur.precio_venta:null);
  const si=(d.stock_inicial===''||d.stock_inicial==null)?0:parseInt(d.stock_inicial);
