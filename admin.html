@@ -119,17 +119,15 @@ H.venta=async d=>{const p=S.prod.find(x=>x.id===d.producto_id);
  await ok(SB.from('ventas').insert({producto_id:d.producto_id,fecha:d.fecha||hoy(),cantidad:parseInt(d.cantidad),precio_unitario:d.precio_unitario===''?N(p?.precio_venta):N(d.precio_unitario),descuento:N(d.descuento),medio_pago:d.medio_pago,comision_cobro:N(d.comision_cobro),costos_variables_extra:N(d.costos_variables_extra),estado_cobro:d.estado_cobro,monto_cobrado:N(d.monto_cobrado)}))};
 H.gasto=async d=>{await ok(SB.from('gastos').insert({fecha:d.fecha||hoy(),concepto:d.concepto,categoria:d.categoria,naturaleza:d.naturaleza,clasificacion:d.clasificacion,monto:N(d.monto),estado_pago:d.estado_pago,fecha_pago:d.estado_pago==='pagado'?(d.fecha||hoy()):null,proveedor:d.proveedor||null,es_prueba:d.es_prueba}))};
 H.cfg=async d=>{await ok(SB.from('config').upsert([{clave:'margen_objetivo_general',valor:N(d.margen),actualizado_en:new Date().toISOString()},{clave:'meta_utilidad_mensual',valor:N(d.meta),actualizado_en:new Date().toISOString()}],{onConflict:'clave'}))};
-async function anular(t,id){const m=prompt('Motivo de la anulación');if(!m)return;
- try{await ok(SB.from(t).update(t==='ventas'?{anulada:true,anulada_motivo:m}:{anulado:true,anulado_motivo:m}).eq('id',id));await load();draw();toast('Anulado ✔')}catch(x){toast(x.message,true)}}
+async function anular(t,id){if(t==='ventas')return anularVenta(id);const m=prompt('Motivo de la anulación');if(!m)return;
+ try{await ok(SB.from(t).update({anulado:true,anulado_motivo:m}).eq('id',id));await load();draw();toast('Anulado ✔')}catch(x){toast(x.message,true)}}
 async function anularVenta(id){const v=S.ventas.find(x=>x.id===id);if(!v||v.anulada||S.anulando)return;
  const m=(prompt('Motivo de la anulación de la venta (obligatorio).\nSe devolverán '+v.cantidad+' unidad(es) al stock.')||'').trim();
  if(m.length<3){toast('Escribe el motivo de la anulación (mínimo 3 letras).',true);return}
- if(!confirm('¿Anular esta venta de '+v.cantidad+' unidad(es)? No se puede deshacer.'))return;
  S.anulando=1;
  try{await ok(SB.from('ventas').update({anulada:true,anulada_motivo:m}).eq('id',id).eq('anulada',false));await load();draw();toast('Venta anulada ✔ (stock devuelto)')}
  catch(x){toast(x.message||String(x),true)}finally{S.anulando=0}}
-async function anular(t,id){if(t==='ventas')return anularVenta(id);const m=prompt('Motivo de la anulación');if(!m)return;
-
+async function pagar(id){try{await ok(SB.from('gastos').update({estado_pago:'pagado',fecha_pago:hoy()}).eq('id',id));await load();draw()}catch(x){toast(x.message,true)}}
 V.panel=()=>{const ym=hoy().slice(0,7),mk=ym+'-01',ms=vis(S.mes).sort((a,b)=>a.mes<b.mes?1:-1),cur=ms.find(x=>x.mes===mk)||{},prev=ms.find(x=>x.mes<mk);
  const vv=vis(S.ventas).filter(x=>!x.anulada),w=new Date(Date.now()-6*864e5).toLocaleDateString('en-CA',{timeZone:TZ});
  const K=(l,v,c='')=>`<div class="k"><small>${l}</small><b class="${c}">${v}</b></div>`;
