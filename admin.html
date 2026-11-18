@@ -668,5 +668,17 @@ pruebas=function(){const T=[],add=(n,d,f,e,o,fm,tol=0.01)=>T.push({n,d,f,e:fm(e)
  add('Margen imposible rechazado','margen 100 %','validación',1,REC.precio(8000,100,0)==null?1:0,String);
  const n=T.filter(t=>t.ok).length;
  return _pr8()+`<h4>Recomendación de ganancias</h4><div class="${n===T.length?'pos':'neg'}"><b>${n} de ${T.length} pruebas aprobadas</b></div><table><tr><th>Prueba</th><th>Datos</th><th>Fórmula</th><th>Esperado</th><th>Obtenido</th><th>Estado</th></tr>${T.map(t=>`<tr><td>${t.n}</td><td>${t.d}</td><td>${t.f}</td><td>${t.e}</td><td>${t.o}</td><td class="${t.ok?'pos':'neg'}"><b>${t.ok?'APROBADO':'ERROR'}</b></td></tr>`).join('')}</table>`};})();
- start();
+window.cobrarTodo=async function(id){const v=S.ventas.find(x=>x.id===id);if(!v||S.cobrando)return;
+ const falta=N(v.ingreso_neto)-N(v.monto_cobrado);
+ if(!(falta>0.004)){toast('Esta venta ya está cobrada',true);return}
+ if(!confirm('¿Confirmas que cobraste '+fmt(falta)+' de "'+(v.productos?.nombre||'esta venta')+'"?'))return;
+ S.cobrando=1;
+ try{await ok(SB.from('cobros').insert({venta_id:id,monto:falta,fecha:hoy()}));toast('Cobro registrado ✔');await load();draw()}
+ catch(x){toast(x.message||String(x),true)}finally{S.cobrando=0}};
+ const _vCobrado=V.ventas;
+V.ventas=()=>_vCobrado().replace(/<button class="s" onclick="anular\('ventas','([^']+)'\)">Anular<\/button>/g,(m,id)=>{
+ const v=S.ventas.find(x=>x.id===id);
+ return v&&N(v.ingreso_neto)-N(v.monto_cobrado)>0.004
+  ?`<button class="s" style="background:#1f6b3a;color:#fff" onclick="cobrarTodo('${id}')">Cobrado</button>`+m:m});
+start();
 </script></body></html>
