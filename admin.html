@@ -704,5 +704,58 @@ load=async()=>{await _loadA1();
    ganancia_unitaria:(pv!=null&&ofi!=null)?N(pv)-ofi:null,
    margen_pct:(N(pv)>0&&ofi!=null)?r2((N(pv)-ofi)/N(pv)*100):null,
    recargo_pct:(ofi>0&&pv!=null)?r2((N(pv)-ofi)/ofi*100):null}})};})();
+ (function(){
+const _vcA2=V.caja;
+V.caja=()=>{const L=vis(S.mes),ini=N(S.cfg.saldo_inicial_caja),flujo=sum(L,'flujo_caja_est'),saldo=ini+flujo,xc=sum(L,'por_cobrar'),xp=sum(L,'por_pagar');
+ const k=(l,v,c='')=>`<div class="k"><small>${l}</small><b class="${c}">${v}</b></div>`;
+ return `<div class="card"><h3>Saldo de caja</h3><div class="grid">${k('Dinero en caja hoy',fmt(saldo),cls(saldo))}${k('Por cobrar (ventas no cobradas)',fmt(xc))}${k('Por pagar (gastos pendientes)',fmt(xp))}</div><small>Dinero en caja = saldo inicial + cobros − gastos pagados − compras de inventario + aportes − retiros, desde el inicio del negocio.</small><form onsubmit="return sub(event,'saldoIni')"><label>Saldo inicial de caja (Gs.), con el que empezó el negocio<input name="monto" type="number" step="any" min="0" value="${ini}"></label><button class="p">Guardar saldo inicial</button></form></div>`+_vcA2()};
+H.saldoIni=async d=>{const m=N(d.monto);
+ if(d.monto===''||isNaN(Number(d.monto)))throw new Error('Escribe el saldo inicial');
+ if(m<0)throw new Error('El saldo inicial no puede ser negativo');
+ await ok(SB.from('config').upsert({clave:'saldo_inicial_caja',valor:m,actualizado_en:new Date().toISOString()},{onConflict:'clave'}))};})();
+ (function(){
+const _hgA7=H.gasto;
+H.gasto=async d=>{if(!(N(d.monto)>0))throw new Error('El monto del gasto debe ser mayor que 0');
+ if(!String(d.concepto||'').trim())throw new Error('Escribe el concepto del gasto');
+ return _hgA7(d)};
+const _hvA6=H.venta;
+H.venta=async d=>{const p=S.prod.find(x=>x.id===d.producto_id);
+ if(p&&p.precio_minimo!=null){const pu=d.precio_unitario===''?N(p.precio_venta):N(d.precio_unitario);
+  if(pu>0&&pu<N(p.precio_minimo)&&!confirm('Aviso: el precio ('+fmt(pu)+') es menor que el precio mínimo ('+fmt(p.precio_minimo)+'). ¿Registrar la venta igual?'))throw new Error('No se registró la venta.')}
+ return _hvA6(d)};
+const _simA6=simRun;
+simRun=function(e){const r=_simA6(e);
+ try{const f=e.target,p=S.prod.find(x=>x.id===f.elements['p'].value),o=$('#simout');
+  if(p&&p.precio_minimo!=null&&o&&!o.innerHTML.includes('bad')){
+   const base=N(f.elements['precio'].value),dp=N(f.elements['dp'].value),pt=f.elements['pt'].value,pv=N(f.elements['pv'].value);
+   let pe=base*(1+dp/100);
+   if(pt==='pct')pe=pe*(1-pv/100);else if(pt==='importe')pe=pe-pv;else if(pt==='final'&&pv>0)pe=pv;
+   if(pe<N(p.precio_minimo))o.insertAdjacentHTML('afterbegin','<div class="warn">Aviso: el precio del escenario ('+fmt(pe)+') queda por debajo del precio mínimo ('+fmt(p.precio_minimo)+').</div>')}}
+ catch(x){}
+ return r};})();
+ (function(){
+const TB=['productos','costos_producto','precios_producto','movimientos_inventario','ventas','cobros','gastos','movimientos_caja','config','escenarios','precios_mercado'];
+async function leerTabla(t){let out=[],d=0;
+ for(;;){let q=SB.from(t).select('*');if(t!=='config')q=q.order('id',{ascending:true});
+  const r=await q.range(d,d+999);if(r.error)throw r.error;const x=r.data||[];out=out.concat(x);if(x.length<1000)break;d+=1000}
+ return out}
+window.descargarCopia=async function(){try{const copia={},cant={};
+  for(const t of TB){copia[t]=await leerTabla(t);cant[t]=copia[t].length}
+  const blob=new Blob([JSON.stringify({generado:new Date().toISOString(),tablas:copia},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ecoplantas_copia_'+hoy()+'.json';
+  document.body.appendChild(a);a.click();a.remove();
+  toast('Copia descargada. Filas: '+Object.entries(cant).map(([k,v])=>k+' '+v).join(', '))}
+ catch(x){toast('No se pudo generar la copia: '+(x.message||String(x)),true)}};
+const _vcA8=V.config;
+V.config=()=>_vcA8()+`<div class="card"><h3>Copia de seguridad</h3><small>Descarga todas las tablas (reales y de prueba) en un archivo JSON. No modifica nada. Guárdela fuera de la computadora.</small><br><button class="p" onclick="descargarCopia()">Descargar copia completa (JSON)</button></div>`;
+const _prA9=pruebas;
+pruebas=function(){const T=[],add=(n,d,f,e,o,fm,tol=0.01)=>T.push({n,d,f,e:fm(e),o:fm(o),ok:Math.abs(o-e)<=tol}),g=v=>fmt(v);
+ add('Saldo de caja','saldo inicial 100.000 · flujo 50.000 · por cobrar 20.000 (no suma)','saldo inicial + flujo',150000,100000+50000,g);
+ add('Costo oficial (promedio)','(5×8.000 + 2×10.000) ÷ 7','costo promedio ponderado',8571.43,cp(5,8000,2,10000),v=>Number(v).toFixed(2));
+ const est=[ecoEstadoCobro({monto_cobrado:0,ingreso_neto:10000}),ecoEstadoCobro({monto_cobrado:5000,ingreso_neto:10000}),ecoEstadoCobro({monto_cobrado:10000,ingreso_neto:10000})].join(', ');
+ T.push({n:'Estado de cobro',d:'cobrado 0 · 5.000 · 10.000 de 10.000',f:'pendiente / parcial / cobrado',e:'pendiente, parcial, cobrado',o:est,ok:est==='pendiente, parcial, cobrado'});
+ add('Gasto por unidad','300.000 entre 300 unidades','gastos ÷ unidades',1000,REC.reparto(300000,[{id:'a',u:300,pr:1}],'unidades').a,g);
+ const n=T.filter(t=>t.ok).length;
+ return _prA9()+`<h4>Fase A</h4><div class="${n===T.length?'pos':'neg'}"><b>${n} de ${T.length} pruebas aprobadas</b></div><table><tr><th>Prueba</th><th>Datos</th><th>Fórmula</th><th>Esperado</th><th>Obtenido</th><th>Estado</th></tr>${T.map(t=>`<tr><td>${t.n}</td><td>${t.d}</td><td>${t.f}</td><td>${t.e}</td><td>${t.o}</td><td class="${t.ok?'pos':'neg'}"><b>${t.ok?'APROBADO':'ERROR'}</b></td></tr>`).join('')}</table>`};})();
  start();
 </script></body></html>
