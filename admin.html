@@ -680,5 +680,29 @@ V.ventas=()=>_vCobrado().replace(/<button class="s" onclick="anular\('ventas','(
  const v=S.ventas.find(x=>x.id===id);
  return v&&N(v.ingreso_neto)-N(v.monto_cobrado)>0.004
   ?`<button class="s" style="background:#1f6b3a;color:#fff" onclick="cobrarTodo('${id}')">Cobrado</button>`+m:m});
-start();
+(function(){
+const COSTO_OFICIAL='promedio'; /* 'promedio' = costo promedio del inventario; 'ultimo' = último costo registrado */
+async function leerTodo(tabla,select){let out=[],desde=0;
+ for(;;){const r=await SB.from(tabla).select(select).order('fecha',{ascending:false}).order('id',{ascending:false}).range(desde,desde+999);
+  if(r.error)throw r.error;const d=r.data||[];out=out.concat(d);if(d.length<1000)break;desde+=1000}
+ return out}
+function estadoCobro(v){const m=N(v.monto_cobrado),t=N(v.ingreso_neto);
+ if(m>=t-0.004)return 'cobrado';if(m>0)return 'parcial';return 'pendiente'}
+window.ecoEstadoCobro=estadoCobro;
+const r2=x=>Math.round(x*100)/100;
+const _loadA1=load;
+load=async()=>{await _loadA1();
+ try{S.ventas=(await leerTodo('ventas','*,productos(nombre,codigo)')).map(v=>({...v,estado_cobro:estadoCobro(v)}))}
+ catch(x){toast('No se pudieron leer todas las ventas: '+(x.message||String(x)),true)}
+ try{S.gastos=await leerTodo('gastos','*')}
+ catch(x){toast('No se pudieron leer todos los gastos: '+(x.message||String(x)),true)}
+ const invM=Object.fromEntries((S.inv||[]).map(i=>[i.producto_id,i]));
+ S.prod=(S.prod||[]).map(p=>{const pv=p.precio_venta,prom=N(invM[p.id]?.costo_promedio);
+  const ult=p.costo_total==null?null:N(p.costo_total);
+  const ofi=(COSTO_OFICIAL==='promedio'&&prom>0)?prom:ult;
+  return {...p,costo_ultimo:ult,costo_total:ofi,
+   ganancia_unitaria:(pv!=null&&ofi!=null)?N(pv)-ofi:null,
+   margen_pct:(N(pv)>0&&ofi!=null)?r2((N(pv)-ofi)/N(pv)*100):null,
+   recargo_pct:(ofi>0&&pv!=null)?r2((N(pv)-ofi)/ofi*100):null}})};})();
+ start();
 </script></body></html>
