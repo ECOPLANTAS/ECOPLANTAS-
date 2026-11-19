@@ -599,7 +599,7 @@ const med=a=>{const s=[...a].sort((x,y)=>x-y);return s.length?s[Math.floor(s.len
 const compet=(P,mk)=>{if(!(mk>0))return '—';const r=P/mk;return r<=1?'<span class="pos">Competitivo</span>':r<=1.1?'Cercano al mercado':'<span class="neg">Por encima del mercado</span>'};
 function auto(){const d30=new Date(Date.now()-29*864e5).toLocaleDateString('en-CA',{timeZone:TZ}),vv=vis(S.ventas).filter(v=>!v.anulada&&v.fecha>=d30),u={};
  vv.forEach(v=>u[v.producto_id]=(u[v.producto_id]||0)+N(v.cantidad));
- return {G:Math.round(sum(vis(S.gastos).filter(g=>!g.anulado&&g.clasificacion!=='directo'&&g.fecha>=d30),'monto')),u}}
+ return {G:Math.round(sum(vis(S.gastos).filter(g=>!g.anulado&&g.clasificacion==='indirecto'&&g.fecha>=d30),'monto')),u}}
 V.rec=()=>{const P=vis(S.prod).filter(p=>p.costo_total!=null&&p.activo!==false),a=auto(),st=S.rec,G=st.G==null?a.G:st.G,t=st.t,
  metodo=S.cfg.metodo_prorrateo_costos_compartidos==='ingresos'?'ingresos':'unidades',gen=N(S.cfg.margen_objetivo_general||30),meta=N(S.cfg.meta_utilidad_mensual),
  U=p=>st.units[p.id]!=null?st.units[p.id]:(a.u[p.id]||0),Lr=P.map(p=>({id:p.id,u:U(p),pr:N(p.precio_venta)||N(p.costo_total)*1.3})),gu=REC.reparto(G,Lr,metodo),
@@ -626,9 +626,9 @@ V.rec=()=>{const P=vis(S.prod).filter(p=>p.costo_total!=null&&p.activo!==false),
  <div id="ru_${p.id}"></div><small>Precio recomendado: ${fmt(Pr)}.</small></div>`};
  return `<div class="card"><h3>Recomendación inteligente de ganancias</h3><small>Calcula el costo real de cada planta sumando su parte de los gastos del negocio, y sugiere qué margen de ganancia conviene. Costo total = costo directo + gasto proporcional. Precio = costo total ÷ (1 − margen − comisiones).</small>
  <div class="grid fk" style="margin-top:8px">${k('Gastos del mes a repartir',fmt(G))}${k('Unidades estimadas por mes',su)}${k('Gasto promedio por unidad',su>0?fmt(G/su):'—')}${k('Margen necesario para tu meta',meta>0?(mg==null?'—':pc(mg)):'sin meta en Config')}</div>
- <label>Gastos mensuales a repartir (Gs.) — por defecto, los de los últimos 30 días que no son directos<input type="number" min="0" step="any" value="${G}" onchange="recSet('G',this.value)"></label>
+ <label>Gastos mensuales a repartir (Gs.) — por defecto, los de los últimos 30 días clasificados como indirectos<input type="number" min="0" step="any" value="${G}" onchange="recSet('G',this.value)"></label>
  <label>Comisiones e impuestos sobre la venta (%)<input type="number" min="0" max="50" step="any" value="${t}" onchange="recSet('t',this.value)"></label>
- <small>Reparto según: ${metodo==='ingresos'?'ingresos de cada producto':'unidades vendidas'} (se cambia en Config). Los gastos de tipo "directo" no se reparten, porque se asumen ya incluidos en el costo del producto.</small><br><button class="s" onclick="recReset()">Restablecer valores automáticos</button></div>
+ <small>Reparto según: ${metodo==='ingresos'?'ingresos de cada producto':'unidades vendidas'} (se cambia en Config). Solo se reparten los gastos clasificados como "indirecto", igual que la vista reparto_gastos_producto.</small><br><button class="s" onclick="recReset()">Restablecer valores automáticos</button></div>
  ${rows.length?rows.map(card).join(''):'<div class="card"><small>Primero carga productos con su costo en la pestaña Productos.</small></div>'}`};
 window.recSet=(k,v)=>{const n=parseFloat(v);if(!(n>=0)||(k==='t'&&n>=100)){toast('Escribe un número válido (0 o más).',true);return}S.rec[k]=n;draw()};
 window.recU=(id,v)=>{const n=parseInt(v,10);if(!(n>=0)){toast('Las unidades deben ser 0 o más.',true);return}S.rec.units[id]=n;draw()};
