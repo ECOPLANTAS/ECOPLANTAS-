@@ -735,9 +735,9 @@ simRun=function(e){const r=_simA6(e);
  return r};})();
  (function(){
 const TB=['productos','costos_producto','precios_producto','movimientos_inventario','ventas','cobros','gastos','movimientos_caja','config','escenarios','precios_mercado'];
-async function leerTabla(t){let out=[],d=0;
+ async function leerTabla(t){let out=[],d=0;
  for(;;){let q=SB.from(t).select('*');if(t!=='config')q=q.order('id',{ascending:true});
-  const r=await q.range(d,d+999);if(r.error)throw r.error;const x=r.data||[];out=out.concat(x);if(x.length<1000)break;d+=1000}
+ const r=await q.range(d,d+999);if(r.error)throw r.error;const x=r.data||[];out=out.concat(x);if(x.length<1000)break;d+=1000}
  return out}
 window.descargarCopia=async function(){try{const copia={},cant={};
   for(const t of TB){copia[t]=await leerTabla(t);cant[t]=copia[t].length}
@@ -757,5 +757,11 @@ pruebas=function(){const T=[],add=(n,d,f,e,o,fm,tol=0.01)=>T.push({n,d,f,e:fm(e)
  add('Gasto por unidad','300.000 entre 300 unidades','gastos ÷ unidades',1000,REC.reparto(300000,[{id:'a',u:300,pr:1}],'unidades').a,g);
  const n=T.filter(t=>t.ok).length;
  return _prA9()+`<h4>Fase A</h4><div class="${n===T.length?'pos':'neg'}"><b>${n} de ${T.length} pruebas aprobadas</b></div><table><tr><th>Prueba</th><th>Datos</th><th>Fórmula</th><th>Esperado</th><th>Obtenido</th><th>Estado</th></tr>${T.map(t=>`<tr><td>${t.n}</td><td>${t.d}</td><td>${t.f}</td><td>${t.e}</td><td>${t.o}</td><td class="${t.ok?'pos':'neg'}"><b>${t.ok?'APROBADO':'ERROR'}</b></td></tr>`).join('')}</table>`};})();
+ (function(){
+const _vpDia=V.panel;
+V.panel=()=>{const h=hoy(),vv=vis(S.ventas).filter(x=>!x.anulada&&x.fecha===h),gg=vis(S.gastos).filter(g=>!g.anulado&&g.fecha===h);
+ const gb=sum(vv,'ganancia_bruta'),cg=sum(vv,'comision_cobro')+sum(vv,'costos_variables_extra'),gs=sum(gg,'monto'),ut=gb-cg-gs;
+ const tarjeta=`<div class="card"><h4>Resultado de hoy (${h})</h4><div class="grid"><div class="k"><small>Ganancia bruta de hoy</small><b class="${cls(gb)}">${fmt(gb)}</b></div><div class="k"><small>Gastos de hoy</small><b>${fmt(gs)}</b></div><div class="k"><small>Utilidad de hoy</small><b class="${cls(ut)}">${fmt(ut)}</b></div></div><small>Utilidad de hoy = ganancia bruta − comisiones y otros costos de venta − gastos registrados hoy. Los retiros de Caja no se restan aquí.</small></div>`;
+ return tarjeta+_vpDia()};})();
  start();
 </script></body></html>
