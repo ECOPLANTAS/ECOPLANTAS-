@@ -106,6 +106,12 @@ var WHATSAPP = "595983449996";
 /* foto: nombre del archivo subido junto a index.html (si no existe, se muestra una hojita).
    opciones: si el producto tiene más de un precio, usá "opciones" en vez de "precio". */
 var PRODUCTOS = [
+  {id:"anturio", nombre:"Anturio", cat:"Interior", precio:50000, foto:"anturio.jpg",
+   desc:"Una planta de interior llamativa y elegante: sus flores rojas brillantes con forma de corazón y sus hojas verdes oscuras le dan color y vida a cualquier rincón de tu casa.",
+   detalles:["Flores rojas vistosas que duran mucho tiempo","Ideal para interiores con luz natural, sin sol directo","Muy fácil de cuidar: necesita riego moderado","Perfecta para sala, comedor u oficina"]},
+  {id:"limon-tahiti", nombre:"Limón Tahití", cat:"Cítricos", precio:25000, foto:"limon-tahiti.jpg",
+   desc:"Un cítrico práctico y generoso: sus frutos jugosos y aromáticos son ideales para limonadas, jugos, aderezos y para darle sabor a tus comidas.",
+   detalles:["Hojas verdes y brillantes que decoran tu patio","Se adapta bien a patios, jardines y macetas grandes","Prefiere lugares con mucho sol","Cultivá tus propios limones en casa"]},
   {id:"anturio", nombre:"Anturio", cat:"Interior", precio:50000, foto:"anturio.jpg"},
   {id:"cala-negra", nombre:"Cala Negra (Spathiphyllum)", cat:"Interior", precio:40000, foto:"cala-negra.jpg",
    desc:"Una planta elegante que rompe con lo tradicional. Sus hojas grandes, brillantes y de un verde profundo aportan un toque de lujo y sofisticación a cualquier espacio.",
@@ -126,11 +132,11 @@ var PRODUCTOS = [
    opciones:[{label:"Opción 1",precio:15000},{label:"Opción 2",precio:30000}]},
   {id:"hortensia-azul", nombre:"Hortensia azul", cat:"Flores", foto:"hortensia-azul.jpg",
    desc:"Flores de un azul intenso que llenan cualquier espacio de vida y elegancia. ¡Ideal para darle un toque especial a tu jardín!",
-   detalles:["Alcanza hasta 2 metros de altura","Prefiere lugares frescos con semisombra"],
+   detalles:["Prefiere lugares frescos con semisombra"],
    opciones:[{label:"Opción 1",precio:15000},{label:"Opción 2",precio:30000}]},
   {id:"hortensia-blanca", nombre:"Hortensia blanca", cat:"Flores", foto:"hortensia-blanca.jpg",
    desc:"Sus abundantes flores blancas aportan belleza, delicadeza y elegancia a cualquier rincón. ¡Perfecta para un jardín lleno de encanto!",
-   detalles:["Puede alcanzar hasta 2 metros de altura","Crece mejor en lugares frescos con semisombra"],
+   detalles:["Crece mejor en lugares frescos con semisombra"],
    opciones:[{label:"Opción 1",precio:15000},{label:"Opción 2",precio:30000}]},
   {id:"fertilizante-triple-15", nombre:"Fertilizante Triple 15 (250 g)", cat:"Fertilizantes", precio:20000, foto:"triple15-bio.jpg",
    desc:"Dale a tus plantas la nutrición que necesitan para crecer hermosas y fuertes. Aporta los tres nutrientes esenciales: nitrógeno, fósforo y potasio.",
