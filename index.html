@@ -33,9 +33,9 @@ header.top{display:flex;align-items:center;justify-content:space-between;gap:12p
 .chip[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:18px;padding-bottom:110px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
-.thumb{background:var(--leaf);display:block;overflow:hidden}
-.thumb img{width:100%;height:auto;display:block}
-.thumb svg{width:60%;max-width:220px;height:auto;aspect-ratio:1/1;display:block;margin:28px auto}
+.thumb{aspect-ratio:1/1;background:var(--leaf);display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover;object-position:center 25%;display:block}
+.thumb svg{width:70%;height:90%}
 .card .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px;flex:1}
 .card h3{margin:0;font-family:"Fraunces",Georgia,serif;font-size:20px}
 .cat{font-size:14px;color:var(--muted)}
@@ -46,10 +46,10 @@ header.top{display:flex;align-items:center;justify-content:space-between;gap:12p
 .opt{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .empty{grid-column:1/-1;background:var(--surface);border:1.5px dashed var(--line);border-radius:18px;padding:28px;text-align:center;color:var(--muted)}
 footer{border-top:1px solid var(--line);padding:24px 0 120px;color:var(--muted);font-size:15px}
-.fab{position:fixed;right:16px;bottom:calc(100px + env(safe-area-inset-bottom,0px));z-index:20;box-shadow:0 8px 24px var(--shadow)}
+.fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:20;box-shadow:0 8px 24px var(--shadow)}
 .badge{background:var(--brand-ink);color:var(--brand);border-radius:999px;min-width:24px;padding:0 7px;text-align:center;font-size:14px}
 .scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:none}
-.drawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);background:var(--surface);z-index:31;display:none;flex-direction:column;padding:calc(16px + env(safe-area-inset-top,0px)) 18px calc(100px + env(safe-area-inset-bottom,0px));box-shadow:-8px 0 30px var(--shadow)}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);background:var(--surface);z-index:31;display:none;flex-direction:column;padding:calc(16px + env(safe-area-inset-top,0px)) 18px calc(16px + env(safe-area-inset-bottom,0px));box-shadow:-8px 0 30px var(--shadow)}
 body.open .scrim{display:block}
 body.open .drawer{display:flex}
 .drawer h2{font-family:"Fraunces",Georgia,serif;margin:0;font-size:24px}
@@ -74,7 +74,7 @@ input[type=text]{width:100%;padding:12px 14px;border:1.5px solid var(--line);bor
 
   <section class="hero">
     <h1>Plantas para tu casa, tu mesa y tu salud</h1>
-    <p>Cítricos, flores, plantas decorativas de interior y fertilizantes. Elegí lo que te gusta y hacé tu pedido por WhatsApp.</p>
+    <p>Cítricos, flores, plantas medicinales y plantas decorativas de interior. Elegí lo que te gusta y hacé tu pedido por WhatsApp.</p>
     <div class="chips" id="chips" role="group" aria-label="Categorías"></div>
   </section>
 
@@ -106,47 +106,16 @@ var WHATSAPP = "595983449996";
 /* foto: nombre del archivo subido junto a index.html (si no existe, se muestra una hojita).
    opciones: si el producto tiene más de un precio, usá "opciones" en vez de "precio". */
 var PRODUCTOS = [
-  {id:"anturio", nombre:"Anturio", cat:"Interior", precio:50000, foto:"anturio.jpg",
-   desc:"Una planta de interior llamativa y elegante: sus flores rojas brillantes con forma de corazón y sus hojas verdes oscuras le dan color y vida a cualquier rincón de tu casa.",
-   detalles:["Flores rojas vistosas que duran mucho tiempo","Ideal para interiores con luz natural, sin sol directo","Muy fácil de cuidar: necesita riego moderado","Perfecta para sala, comedor u oficina"]},
-  {id:"limon-tahiti", nombre:"Limón Tahití", cat:"Cítricos", precio:25000, foto:"limon-tahiti.jpg",
-   desc:"Un cítrico práctico y generoso: sus frutos jugosos y aromáticos son ideales para limonadas, jugos, aderezos y para darle sabor a tus comidas.",
-   detalles:["Hojas verdes y brillantes que decoran tu patio","Se adapta bien a patios, jardines y macetas grandes","Prefiere lugares con mucho sol","Cultivá tus propios limones en casa"]},
-  {id:"anturio", nombre:"Anturio", cat:"Interior", precio:50000, foto:"anturio.jpg"},
-  {id:"cala-negra", nombre:"Cala Negra (Spathiphyllum)", cat:"Interior", precio:40000, foto:"cala-negra.jpg",
-   desc:"Una planta elegante que rompe con lo tradicional. Sus hojas grandes, brillantes y de un verde profundo aportan un toque de lujo y sofisticación a cualquier espacio.",
-   detalles:["Tolera poca luz y es muy fácil de cuidar","Ideal para sala, oficina o dormitorio"]},
-  {id:"limon-tahiti", nombre:"Limón Tahití", cat:"Cítricos", precio:25000, foto:"limon-tahiti.jpg"},
-  {id:"pomelo-rosado", nombre:"Pomelo rosado", cat:"Cítricos", precio:25000, foto:"pomelo-rosado.jpg",
-   desc:"Sabor y frescura en tu hogar: un hermoso árbol frutal con hojas verdes y frutos jugosos de pulpa rosada, ideales para preparar deliciosos jugos naturales.",
-   detalles:["Cultivá naturaleza y disfrutá tus propios frutos"]},
-  {id:"naranja-variegado", nombre:"Naranja variegado", cat:"Cítricos", precio:25000, foto:"naranja-variegado.jpg",
+  {id:"naranja-variegado", nombre:"Naranja variegado", cat:"Cítricos", precio:30000, foto:"naranja-variegado.jpg",
    desc:"Hojas llamativas, grandes, ovaladas y gruesas, con una combinación única de verde oscuro, verde claro y crema.",
-   detalles:["Altura: en maceta puede alcanzar entre 1,5 y 3 metros en aproximadamente 5 a 10 años, según sus cuidados","Crecimiento: entre 15 y 60 cm por año en buenas condiciones","Dato interesante: sus hojas nuevas pueden presentar colores más claros que cambian a medida que maduran"]},
-  {id:"naranja-ombligo-injertada", nombre:"Naranja de ombligo injertada", cat:"Cítricos", precio:25000, foto:"naranja-ombligo-injertada.jpg",
+   detalles:["Altura: puede alcanzar entre 1,5 y 3 metros en aproximadamente 5 a 10 años, según sus cuidados","Crecimiento: entre 15 y 60 cm por año en buenas condiciones","Dato interesante: sus hojas nuevas pueden presentar colores más claros que cambian a medida que maduran"]},
+  {id:"naranja-ombligo-injertada", nombre:"Naranja de ombligo injertada", cat:"Cítricos", precio:30000, foto:"naranja-ombligo-injertada.jpg",
    desc:"Planta injertada de hojas verdes, brillantes y aromáticas.",
    detalles:["Altura: alcanza hasta 3 metros","Frutos: comienza a producir naranjas aproximadamente a los 3 años","Producción anual: de 30 a 50 frutas por año, según sus cuidados"]},
   {id:"hortensias", nombre:"Hortensias", cat:"Flores", foto:"hortensias.jpg",
    desc:"Floración espectacular, con abundantes flores en cabezales voluminosos y muy vistosos.",
-   detalles:["Colores disponibles: azul, rosa o blanco","Follaje exuberante: hojas grandes y verdes","Ideal para patios o galerías a media sombra"],
-   opciones:[{label:"Opción 1",precio:15000},{label:"Opción 2",precio:30000}]},
-  {id:"hortensia-azul", nombre:"Hortensia azul", cat:"Flores", foto:"hortensia-azul.jpg",
-   desc:"Flores de un azul intenso que llenan cualquier espacio de vida y elegancia. ¡Ideal para darle un toque especial a tu jardín!",
-   detalles:["Prefiere lugares frescos con semisombra"],
-   opciones:[{label:"Opción 1",precio:15000},{label:"Opción 2",precio:30000}]},
-  {id:"hortensia-blanca", nombre:"Hortensia blanca", cat:"Flores", foto:"hortensia-blanca.jpg",
-   desc:"Sus abundantes flores blancas aportan belleza, delicadeza y elegancia a cualquier rincón. ¡Perfecta para un jardín lleno de encanto!",
-   detalles:["Crece mejor en lugares frescos con semisombra"],
-   opciones:[{label:"Opción 1",precio:15000},{label:"Opción 2",precio:30000}]},
-  {id:"fertilizante-triple-15", nombre:"Fertilizante Triple 15 (250 g)", cat:"Fertilizantes", precio:20000, foto:"triple15-bio.jpg",
-   desc:"Dale a tus plantas la nutrición que necesitan para crecer hermosas y fuertes. Aporta los tres nutrientes esenciales: nitrógeno, fósforo y potasio.",
-   detalles:["Favorece el crecimiento saludable","Ayuda al desarrollo de flores","Contribuye al fortalecimiento de las plantas","Presentación: 250 gramos, para todo tipo de plantas, árboles y flores"]},
-  {id:"fertilizante-orquideas", nombre:"Fertilizante para orquídeas 20-20-20 (250 g)", cat:"Fertilizantes", precio:20000, foto:"orquideas-fertil.jpg",
-   desc:"Nutrición equilibrada para favorecer el desarrollo de tus orquídeas y estimular una floración espectacular. Fórmula NPK 20-20-20.",
-   detalles:["Estimula la floración","Favorece el desarrollo de raíces fuertes","Ayuda al crecimiento de hojas saludables","Aporta nutrientes para favorecer colores intensos","Presentación: 250 gramos"]},
-  {id:"situpolium-plus", nombre:"Situpolium Plus: insecticida y fertilizante orgánico", cat:"Fertilizantes", precio:20000, foto:"situpolium-insecticida.jpg",
-   desc:"Ayuda a combatir plagas como pulgones, mosca blanca, trips y arañuelas, combinando acción insecticida y fertilización orgánica.",
-   detalles:["Contribuye al cuidado de tus plantas","Ideal para el jardín y las plantas ornamentales","Presentación: sobre de unos 25 g; dosis de 20 g en 10 litros de agua, según el envase"]}
+   detalles:["Colores disponible: Lila","Follaje exuberante: hojas grandes y verdes","Ideal para patios o galerías a media sombra"],
+   opciones:[{label:"Opción 1",precio:15000},{label:"Opción 2",precio:30000}]}
 ];
 /* ====== FIN DE LA PARTE EDITABLE ====== */
 
